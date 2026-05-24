@@ -1,0 +1,6 @@
+{
+    "server": "nginx",
+    "x-powered-by": "Next.js",
+    "strict-transport-security": "max-age=63072000",
+    "x-frame-options": "DENY"
+}

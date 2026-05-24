@@ -1,0 +1,6 @@
+[
+    {"name_value": "acme.com"},
+    {"name_value": "www.acme.com"},
+    {"name_value": "api.acme.com\nstaging.acme.com"},
+    {"name_value": "*.acme.com"}
+]
