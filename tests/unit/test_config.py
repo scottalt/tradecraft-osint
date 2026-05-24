@@ -16,6 +16,7 @@ def test_default_config_has_sensible_values() -> None:
     assert cfg.http.max_response_bytes == 5 * 1024 * 1024
     assert cfg.http.request_timeout_seconds == 20.0
     assert cfg.http.max_retries == 3
+    assert cfg.http.max_redirects == 5
     assert cfg.cache.enabled is True
     assert cfg.cache.ttl_default_seconds == 3600
     assert cfg.cache.directory is None

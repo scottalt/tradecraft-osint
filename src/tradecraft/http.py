@@ -7,13 +7,14 @@ import ipaddress
 import time
 from collections import defaultdict
 from types import TracebackType
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
 from tradecraft import __version__
 from tradecraft.cache import Cache
 from tradecraft.config import HttpConfig
+from tradecraft.ethics import RobotsDisallowed, RobotsPolicy, parse_robots
 
 
 def _user_agent() -> str:
@@ -56,9 +57,10 @@ class _TokenBucket:
 class HttpClient:
     """httpx wrapper enforcing the project's hard rules."""
 
-    def __init__(self, config: HttpConfig, cache: Cache) -> None:
+    def __init__(self, config: HttpConfig, cache: Cache, *, respect_robots: bool = True) -> None:
         self.config = config
         self.cache = cache
+        self.respect_robots = respect_robots
         self._buckets: dict[str, _TokenBucket] = defaultdict(
             lambda: _TokenBucket(config.per_host_rps)
         )
@@ -69,6 +71,8 @@ class HttpClient:
             timeout=config.request_timeout_seconds,
             headers={"User-Agent": _user_agent()},
         )
+        self._robots_policies: dict[str, RobotsPolicy] = {}
+        self._robots_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     async def __aenter__(self) -> HttpClient:
         return self
@@ -81,15 +85,61 @@ class HttpClient:
     ) -> None:
         await self._client.aclose()
 
-    async def get(self, url: str, *, headers: dict[str, str] | None = None) -> httpx.Response:
+    async def _get_robots_policy(self, host: str, scheme: str) -> RobotsPolicy:
+        """Return (possibly cached) robots policy for the given host."""
+        if host in self._robots_policies:
+            return self._robots_policies[host]
+
+        async with self._robots_locks[host]:
+            # Double-check after acquiring the lock
+            if host in self._robots_policies:
+                return self._robots_policies[host]
+
+            robots_url = f"{scheme}://{host}/robots.txt"
+            try:
+                resp = await self._raw_get(robots_url)
+                policy = parse_robots(resp.text) if resp.status_code == 200 else RobotsPolicy()
+            except Exception:
+                policy = RobotsPolicy()  # fetch failure => allow all
+
+            self._robots_policies[host] = policy
+            return policy
+
+    async def _raw_get(self, url: str) -> httpx.Response:
+        """Fetch a URL directly (no robots check, no cache, no size check).
+
+        Used internally for the robots.txt fetch itself.  Still rate-limited.
+        """
+        parsed = urlparse(url)
+        host = parsed.hostname or ""
+        bucket = self._buckets[host]
+        async with self._sem:
+            await bucket.acquire()
+            return await self._client.get(url)
+
+    async def get(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+    ) -> httpx.Response:
         cache_key = f"GET {url}"
         cached = self.cache.get(cache_key)
         if cached is not None:
             return httpx.Response(200, content=cached, request=httpx.Request("GET", url))
 
-        host = urlparse(url).hostname or ""
+        parsed = urlparse(url)
+        host = parsed.hostname or ""
+        scheme = parsed.scheme or "https"
+
         if _is_private_host(host):
             raise ValueError(f"refusing to fetch private host: {host}")
+
+        if self.respect_robots:
+            policy = await self._get_robots_policy(host, scheme)
+            path = parsed.path or "/"
+            if not policy.is_allowed(path):
+                raise RobotsDisallowed(url)
 
         bucket = self._buckets[host]
         async with self._sem:
@@ -103,6 +153,7 @@ class HttpClient:
         cache_key: str,
     ) -> httpx.Response:
         attempt = 0
+        redirect_count = 0
         while True:
             await bucket.acquire()
             try:
@@ -115,11 +166,18 @@ class HttpClient:
                 continue
 
             if response.is_redirect:
-                self._check_redirect(response)
-                if attempt >= self.config.max_retries:
-                    return response
-                attempt += 1
-                url = response.headers.get("location", url)
+                raw_location = response.headers.get("location", "")
+                absolute_location = urljoin(url, raw_location)
+                self._check_redirect(absolute_location)
+                redirect_count += 1
+                if redirect_count > self.config.max_redirects:
+                    raise ValueError(
+                        f"too many redirects following {url!r} (limit {self.config.max_redirects})"
+                    )
+                url = absolute_location
+                # Update the bucket for the (potentially new) host
+                new_host = urlparse(url).hostname or ""
+                bucket = self._buckets[new_host]
                 continue
 
             if response.status_code >= 500 and attempt < self.config.max_retries:
@@ -132,9 +190,8 @@ class HttpClient:
             self.cache.set(cache_key, response.content)
             return response
 
-    def _check_redirect(self, response: httpx.Response) -> None:
-        location = response.headers.get("location", "")
-        target_host = urlparse(location).hostname or ""
+    def _check_redirect(self, absolute_location: str) -> None:
+        target_host = urlparse(absolute_location).hostname or ""
         if _is_private_host(target_host):
             raise ValueError(f"redirect to private host blocked: {target_host}")
 

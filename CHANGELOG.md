@@ -6,7 +6,7 @@ All notable changes to this project will be documented here. Follows
 
 ## [Unreleased]
 
-## [0.1.0-alpha] - 2026-05-23
+## [0.1.0-alpha] - 2026-05-24
 
 ### Added
 
@@ -31,3 +31,14 @@ All notable changes to this project will be documented here. Follows
   (planned for v0.2.0, see `docs/superpowers/plans/`).
 - BYOK AI analyzer and Anthropic/OpenAI/Ollama/OpenAI-compat providers.
 - Hosted web preview (planned for v1.1).
+
+### Fixed (pre-tag review)
+
+- HTTP client now enforces robots.txt for every fetched host (per-host policy
+  cache, fail-open on robots fetch error). `respect_robots=False` constructor
+  flag bypasses for tests.
+- Relative `Location` headers in redirects are now absolutized against the
+  request URL before the private-IP guard runs (prevents bypass via a server
+  that redirects to a relative path resolving to a link-local IP).
+- Redirect chains capped at `max_redirects` (default 5), separate from
+  `max_retries`.

@@ -17,6 +17,7 @@ class HttpConfig(BaseModel):
     max_response_bytes: int = 5 * 1024 * 1024
     request_timeout_seconds: float = 20.0
     max_retries: int = 3
+    max_redirects: int = 5
 
 
 class CacheConfig(BaseModel):

@@ -6,6 +6,14 @@ import re
 from dataclasses import dataclass, field
 
 
+class RobotsDisallowed(Exception):
+    """Raised when a URL is disallowed by the host's robots.txt."""
+
+    def __init__(self, url: str) -> None:
+        super().__init__(f"disallowed by robots.txt: {url}")
+        self.url = url
+
+
 @dataclass
 class RobotsPolicy:
     allows: list[str] = field(default_factory=list)
