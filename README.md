@@ -31,6 +31,43 @@ Outputs `./dossiers/acme-corp-YYYY-MM-DD/` with:
 
 See `tradecraft --help` for all flags.
 
+## Sample output
+
+```
+$ tradecraft https://example.com --company "Example"
+
+Dossier written to ./dossiers/example-2026-05-24/
+```
+
+`./dossiers/example-2026-05-24/report.md` (excerpt):
+
+```markdown
+# Example
+
+## Snapshot
+- URL: https://example.com/
+- Role focus: `cybersecurity`
+
+## Web & infrastructure footprint
+- Host: `example.com`
+- Server header: `cloudflare`
+- Security headers present: _none_
+
+### Signals
+- `missing_csp`
+- `missing_hsts`
+
+## Questions to ask
+
+### Top picks
+- **Your main site doesn't ship a Content-Security-Policy header.
+  Is that a deliberate posture, or is the team working toward one?**
+  _confidence:_ `med` · _evidence:_ `missing_csp` from `footprint` · _roles:_ `cybersecurity` `swe`
+- **I noticed your apex doesn't return Strict-Transport-Security.
+  How does the team think about transport hardening across subdomains?**
+  _confidence:_ `med` · _evidence:_ `missing_hsts` from `footprint` · _roles:_ `cybersecurity` `devops`
+```
+
 ## Intended use
 
 This is **interview preparation tooling**. Use it on companies you are legitimately interviewing with. The tool identifies itself in every request, respects `robots.txt` by default, rate-limits politely, and contains no authentication, paywall, or rate-limit bypass logic. See [`docs/ETHICS.md`](docs/ETHICS.md).
