@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -53,3 +54,22 @@ def test_clear_wipes_entries(cache: Cache) -> None:
 def test_key_with_path_separators_is_safe(cache: Cache) -> None:
     cache.set("https://example.com/path?q=1", b"safe")
     assert cache.get("https://example.com/path?q=1") == b"safe"
+
+
+def test_corrupted_payload_returns_none(tmp_path: Path) -> None:
+    """A cache file with non-hex payload should be treated as a miss, not crash."""
+    cache = Cache(directory=tmp_path, default_ttl=60)
+    cache.set("k", b"x")
+    # corrupt the stored file's payload_hex
+    path = cache._path_for("k")  # accessing internal to validate cache implementation
+    envelope = json.loads(path.read_text(encoding="utf-8"))
+    envelope["payload_hex"] = "not-hex"
+    path.write_text(json.dumps(envelope), encoding="utf-8")
+    assert cache.get("k") is None
+
+
+def test_empty_bytes_roundtrip(tmp_path: Path) -> None:
+    """Storing and reading back b'' should yield b'', not None."""
+    cache = Cache(directory=tmp_path, default_ttl=60)
+    cache.set("k", b"")
+    assert cache.get("k") == b""

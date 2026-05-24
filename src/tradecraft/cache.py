@@ -37,15 +37,15 @@ class Cache:
             return None
         try:
             envelope = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            expires_at = envelope.get("expires_at", 0)
+            if time.time() >= expires_at:
+                return None
+            payload_hex = envelope.get("payload_hex")
+            if not isinstance(payload_hex, str):
+                return None
+            return bytes.fromhex(payload_hex)
+        except (OSError, json.JSONDecodeError, ValueError):
             return None
-        expires_at = envelope.get("expires_at", 0)
-        if time.time() >= expires_at:
-            return None
-        payload_hex = envelope.get("payload_hex")
-        if not isinstance(payload_hex, str):
-            return None
-        return bytes.fromhex(payload_hex) if payload_hex else None
 
     def set(self, key: str, value: bytes, *, ttl: int | None = None) -> None:
         if not self.enabled:
