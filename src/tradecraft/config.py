@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import os
 import tomllib
+import types
 from pathlib import Path
-from typing import Any
+from typing import Any, Union, get_args, get_origin
 
 from pydantic import BaseModel, Field
 
@@ -32,12 +33,23 @@ class AppConfig(BaseModel):
 _ENV_PREFIX = "TRADECRAFT_"
 
 
-def _coerce(value: str, target_type: type) -> Any:
-    if target_type is bool:
+def _unwrap_optional(target_type: object) -> object:
+    """If the annotation is `X | None` or `Optional[X]`, return X."""
+    origin = get_origin(target_type)
+    if origin in (Union, types.UnionType):
+        args = [a for a in get_args(target_type) if a is not type(None)]
+        if len(args) == 1:
+            return args[0]
+    return target_type
+
+
+def _coerce(value: str, target_type: object) -> Any:
+    unwrapped = _unwrap_optional(target_type)
+    if unwrapped is bool:
         return value.lower() in {"1", "true", "yes", "on"}
-    if target_type is int:
+    if unwrapped is int:
         return int(value)
-    if target_type is float:
+    if unwrapped is float:
         return float(value)
     return value
 

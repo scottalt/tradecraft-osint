@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tradecraft.config import AppConfig, load_config
+from tradecraft.config import AppConfig, _coerce, load_config
 
 
 def test_default_config_has_sensible_values() -> None:
@@ -14,8 +14,11 @@ def test_default_config_has_sensible_values() -> None:
     assert cfg.http.per_host_rps == 1.0
     assert cfg.http.global_concurrency == 5
     assert cfg.http.max_response_bytes == 5 * 1024 * 1024
+    assert cfg.http.request_timeout_seconds == 20.0
+    assert cfg.http.max_retries == 3
     assert cfg.cache.enabled is True
     assert cfg.cache.ttl_default_seconds == 3600
+    assert cfg.cache.directory is None
 
 
 def test_load_config_from_toml(tmp_path: Path) -> None:
@@ -50,3 +53,11 @@ def test_env_vars_override_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("TRADECRAFT_HTTP_PER_HOST_RPS", "0.5")
     cfg = load_config(cfg_file)
     assert cfg.http.per_host_rps == 0.5
+
+
+def test_coerce_unwraps_optional_int() -> None:
+    assert _coerce("42", int | None) == 42
+
+
+def test_coerce_unwraps_optional_bool() -> None:
+    assert _coerce("true", bool | None) is True
