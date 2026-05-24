@@ -1,0 +1,5 @@
+[
+    {"name_value": "e2e.test"},
+    {"name_value": "www.e2e.test"},
+    {"name_value": "staging.e2e.test"}
+]
