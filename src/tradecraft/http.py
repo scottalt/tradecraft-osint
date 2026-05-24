@@ -19,7 +19,7 @@ from tradecraft.ethics import RobotsDisallowed, RobotsPolicy, parse_robots
 
 def _user_agent() -> str:
     return (
-        f"tradecraft/{__version__} (+https://github.com/scottaltiparmak/tradecraft) interview-prep"
+        f"tradecraft/{__version__} (+https://github.com/scottalt/tradecraft-osint) interview-prep"
     )
 
 

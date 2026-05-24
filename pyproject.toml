@@ -48,9 +48,9 @@ dev = [
 tradecraft = "tradecraft.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/scottaltiparmak/tradecraft"
-Repository = "https://github.com/scottaltiparmak/tradecraft"
-Issues = "https://github.com/scottaltiparmak/tradecraft/issues"
+Homepage = "https://github.com/scottalt/tradecraft-osint"
+Repository = "https://github.com/scottalt/tradecraft-osint"
+Issues = "https://github.com/scottalt/tradecraft-osint/issues"
 
 [tool.hatch.version]
 path = "src/tradecraft/__init__.py"
