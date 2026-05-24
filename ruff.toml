@@ -1,0 +1,32 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # bugbear
+    "C4",  # comprehensions
+    "UP",  # pyupgrade
+    "SIM", # simplify
+    "RET", # return values
+    "PTH", # pathlib
+    "ARG", # unused arguments
+    "TRY", # exceptions
+    "PL",  # pylint subset
+    "RUF", # ruff-specific
+]
+ignore = [
+    "E501",   # line length handled by formatter
+    "TRY003", # long exception messages are fine
+    "PLR2004", # magic value comparisons are fine in tests
+]
+
+[lint.per-file-ignores]
+"tests/**/*.py" = ["ARG001", "PLR2004", "S101"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
