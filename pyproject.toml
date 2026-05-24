@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tradecraft"
+dynamic = ["version"]
+description = "OSINT tradecraft for the interview chair. A cybersec-first interview-prep CLI."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Scott Altiparmak" }]
+keywords = ["osint", "cybersecurity", "interview", "recon", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+]
+dependencies = [
+    "httpx[http2]>=0.27",
+    "dnspython>=2.6",
+    "selectolax>=0.3.21",
+    "typer>=0.12",
+    "rich>=13.7",
+    "pydantic>=2.7",
+    "tomli>=2.0;python_version<'3.11'",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+    "coverage>=7.5",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-requests",
+]
+
+[project.scripts]
+tradecraft = "tradecraft.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/scottaltiparmak/tradecraft"
+Repository = "https://github.com/scottaltiparmak/tradecraft"
+Issues = "https://github.com/scottaltiparmak/tradecraft/issues"
+
+[tool.hatch.version]
+path = "src/tradecraft/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tradecraft"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "live: hits real network; opt-in via -m live",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/tradecraft"]
+plugins = ["pydantic.mypy"]
