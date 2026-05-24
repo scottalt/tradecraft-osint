@@ -10,9 +10,7 @@ from tradecraft.models import Question
 def render_questions(questions: Sequence[Question], *, company_name: str) -> str:
     lines = [f"# Questions to ask {company_name}", ""]
     if not questions:
-        lines.append(
-            "_No heuristic-driven questions generated for this run._"
-        )
+        lines.append("_No heuristic-driven questions generated for this run._")
         lines.append("")
         return "\n".join(lines)
 

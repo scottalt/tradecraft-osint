@@ -53,11 +53,19 @@ def main(  # noqa: PLR0913
     role: Annotated[Role, typer.Option(help="Role focus for the dossier")] = Role.CYBERSECURITY,
     company: Annotated[str | None, typer.Option(help="Override the inferred company name")] = None,
     output: Annotated[Path, typer.Option(help="Output folder root")] = Path("./dossiers"),
-    only: Annotated[str | None, typer.Option(help="Run only these collectors (comma-separated)")] = None,
-    skip: Annotated[str | None, typer.Option(help="Skip these collectors (comma-separated)")] = None,
+    only: Annotated[
+        str | None, typer.Option(help="Run only these collectors (comma-separated)")
+    ] = None,
+    skip: Annotated[
+        str | None, typer.Option(help="Skip these collectors (comma-separated)")
+    ] = None,
     no_cache: Annotated[bool, typer.Option("--no-cache", help="Bypass on-disk cache")] = False,
-    json_only: Annotated[bool, typer.Option("--json", help="Print raw.json to stdout, no folder")] = False,
-    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Log every HTTP request")] = False,
+    json_only: Annotated[
+        bool, typer.Option("--json", help="Print raw.json to stdout, no folder")
+    ] = False,
+    verbose: Annotated[
+        bool, typer.Option("--verbose", "-v", help="Log every HTTP request")
+    ] = False,
 ) -> None:
     """Build an interview-prep dossier."""
     company_name = company or _infer_company_name(root_url)
@@ -123,8 +131,7 @@ async def _run(
     if verbose:
         for r in findings.results:
             err_console.print(
-                f"[dim]{r.name}: {r.duration_ms} ms, "
-                f"signals={[s.value for s in r.signals]}[/]"
+                f"[dim]{r.name}: {r.duration_ms} ms, signals={[s.value for s in r.signals]}[/]"
             )
     questions = generate_questions(findings)
     return findings, questions

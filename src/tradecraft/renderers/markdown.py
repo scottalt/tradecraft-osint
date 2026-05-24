@@ -60,8 +60,7 @@ def _footprint_section(findings: Findings) -> str:
     headers = cast(dict[str, object], data.get("security_headers") or {})
     if headers:
         lines.append(
-            "- **Security headers present:** "
-            + ", ".join(f"`{k}`" for k in sorted(headers))
+            "- **Security headers present:** " + ", ".join(f"`{k}`" for k in sorted(headers))
         )
     else:
         lines.append("- **Security headers present:** _none_")

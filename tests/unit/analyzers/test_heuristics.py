@@ -14,9 +14,7 @@ from tradecraft.models import (
 
 def _findings_with(signals: list[Signal], role: Role = Role.CYBERSECURITY) -> Findings:
     target = Target(company_name="Acme", root_url="https://acme.com", role=role)
-    result = CollectorResult(
-        name="footprint", data={}, signals=signals, errors=[], duration_ms=0
-    )
+    result = CollectorResult(name="footprint", data={}, signals=signals, errors=[], duration_ms=0)
     return Findings(target=target, results=[result])
 
 
@@ -48,7 +46,12 @@ def test_data_role_still_gets_relevant_templates() -> None:
 
 def test_top_3_are_starred() -> None:
     f = _findings_with(
-        [Signal.OPEN_STAGING_SUBDOMAIN, Signal.MISSING_CSP, Signal.MISSING_HSTS, Signal.RECENT_FUNDING]
+        [
+            Signal.OPEN_STAGING_SUBDOMAIN,
+            Signal.MISSING_CSP,
+            Signal.MISSING_HSTS,
+            Signal.RECENT_FUNDING,
+        ]
     )
     questions = generate_questions(f)
     starred = [q for q in questions if q.is_starred]

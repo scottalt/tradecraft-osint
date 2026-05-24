@@ -40,9 +40,7 @@ async def client(cfg: HttpConfig, cache: Cache):
 
 @respx.mock
 async def test_get_returns_response(client: HttpClient) -> None:
-    respx.get("https://example.com/").mock(
-        return_value=httpx.Response(200, text="hello")
-    )
+    respx.get("https://example.com/").mock(return_value=httpx.Response(200, text="hello"))
     resp = await client.get("https://example.com/")
     assert resp.status_code == 200
     assert resp.text == "hello"
@@ -50,9 +48,7 @@ async def test_get_returns_response(client: HttpClient) -> None:
 
 @respx.mock
 async def test_user_agent_is_identifying(client: HttpClient) -> None:
-    route = respx.get("https://example.com/").mock(
-        return_value=httpx.Response(200, text="ok")
-    )
+    route = respx.get("https://example.com/").mock(return_value=httpx.Response(200, text="ok"))
     await client.get("https://example.com/")
     ua = route.calls[0].request.headers["user-agent"]
     assert "tradecraft" in ua

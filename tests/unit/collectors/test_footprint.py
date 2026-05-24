@@ -42,9 +42,7 @@ def test_collector_metadata_is_correct() -> None:
 @respx.mock
 async def test_runs_and_emits_signals(http, fixtures) -> None:
     client, cache = http
-    respx.get("https://crt.sh/").mock(
-        return_value=httpx.Response(200, json=fixtures["crtsh"])
-    )
+    respx.get("https://crt.sh/").mock(return_value=httpx.Response(200, json=fixtures["crtsh"]))
     respx.get("https://acme.com/").mock(
         return_value=httpx.Response(200, text="<html>hi</html>", headers=fixtures["headers"])
     )

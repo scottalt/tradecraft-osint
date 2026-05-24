@@ -87,9 +87,7 @@ class TestCollectorResult:
 
     def test_result_with_error(self) -> None:
         err = CollectorError(stage="dns", message="timeout")
-        r = CollectorResult(
-            name="footprint", data={}, signals=[], errors=[err], duration_ms=10
-        )
+        r = CollectorResult(name="footprint", data={}, signals=[], errors=[err], duration_ms=10)
         assert r.errors[0].stage == "dns"
 
 

@@ -89,8 +89,7 @@ class FootprintCollector:
                 {
                     s
                     for s in subdomains
-                    if not s.startswith("*")
-                    and (s == host or s.endswith("." + host))
+                    if not s.startswith("*") and (s == host or s.endswith("." + host))
                 }
             )
             if any(s.startswith(_STAGING_PREFIXES) for s in cleaned_subs):
@@ -105,8 +104,10 @@ class FootprintCollector:
                 "security_headers": sec_headers,
                 "server": server_header,
                 "x_powered_by": powered_by,
-                "has_robots_txt": robots_text is not None and getattr(robots_text, "status_code", 0) == 200,
-                "has_sitemap_xml": sitemap_text is not None and getattr(sitemap_text, "status_code", 0) == 200,
+                "has_robots_txt": robots_text is not None
+                and getattr(robots_text, "status_code", 0) == 200,
+                "has_sitemap_xml": sitemap_text is not None
+                and getattr(sitemap_text, "status_code", 0) == 200,
             },
             signals=signals,
             errors=errors,
