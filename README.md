@@ -10,8 +10,11 @@ Free public sources only. No paid APIs required. Optional AI analysis via your o
 
 ## Status
 
-**v0.3.0** — full CLI feature set. All 9 collectors + BYOK AI deep-dive layer
-(`--ai anthropic|openai|ollama|openai-compat`). Hosted web preview ships in v1.1.
+**v1.1.0** — full CLI + hosted web preview. CLI: all 9 collectors + BYOK AI
+deep-dive layer (`--ai anthropic|openai|ollama|openai-compat`). Web: hosted
+demo at https://tradecraft-osint.vercel.app with the four `safe_for_hosted`
+collectors, BYOK AI proxied per request (key never stored), distinctive
+"Field Dossier" visual style.
 
 [![CI](https://github.com/scottalt/tradecraft-osint/actions/workflows/ci.yml/badge.svg)](https://github.com/scottalt/tradecraft-osint/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)

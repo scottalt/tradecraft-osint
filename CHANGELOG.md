@@ -6,6 +6,37 @@ All notable changes to this project will be documented here. Follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-30
+
+### Added
+
+- **Hosted preview at https://tradecraft-osint.vercel.app.** Next.js 16 +
+  Tailwind v4 frontend under `web/`. Single-page web app that submits a target
+  to the `safe_for_hosted=True` collectors (`footprint`, `company`, `job`,
+  `github`) via a Vercel Python Function that vendors the `tradecraft` package
+  at build time. Dossier renders inline with a deliberately distinctive "Field
+  Dossier" visual style — manila paper, Special Elite typewriter type, JetBrains
+  Mono data tables, classification stamps. Explicitly NOT a generic shadcn
+  default UI.
+- **BYOK AI proxy at `/api/ai`.** Accepts a provider + key + prompt from the
+  browser, calls the provider, returns the response. The key is forwarded once
+  and never stored, logged, or written to disk. SSRF guards reject loopback,
+  private, link-local, multicast, and reserved IP ranges on user-supplied
+  `base_url`. Generic error replies (no upstream exception details echoed).
+  Supports Anthropic (with `cache_control: ephemeral` prompt caching) and
+  OpenAI-compatible endpoints.
+- **Per-IP rate limit on `/api/compile`:** 3 requests / IP / hour, enforced in
+  Routing Middleware. In-memory window (acceptable for demo traffic; upgrade to
+  Upstash Redis if it ever needs to scale).
+- **SSRF guards on `/api/compile`:** user-supplied `root_url` / `job_url` must
+  use http(s) and resolve to public IPs before the orchestrator runs.
+
+### Versioning note
+
+Jumped from 0.3.0 to 1.1.0 to reflect the "CLI + hosted web" milestone that
+was planned from day one. v1.0.0 is implicitly the CLI-feature-complete
+snapshot at tag v0.3.0.
+
 ## [0.3.0] - 2026-05-30
 
 ### Added
