@@ -1,9 +1,21 @@
-"""POST /api/compile — run hosted-safe collectors and return Findings JSON."""
+"""POST /api/compile — run hosted-safe collectors and return Findings JSON.
+
+Security posture:
+- User-supplied `root_url` and `job_url` are validated to use http(s) and
+  to resolve to public IPs before the orchestrator runs. Loopback, private,
+  and link-local ranges are rejected to defend against SSRF (instance
+  metadata, localhost services, internal RFC1918 targets).
+- Errors returned to the client are generic. Upstream exception strings
+  (which can carry URLs, headers, or response bodies from third-party
+  services) stay server-side.
+"""
 
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
+import socket
 import sys
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
@@ -34,6 +46,32 @@ HOSTED_COLLECTORS = [
     JobCollector(),
     GitHubCollector(),
 ]
+
+
+def _is_safe_public_url(raw_url: str) -> bool:
+    """Return True only if raw_url is http/https and resolves to a public IP."""
+    try:
+        parsed = urlparse(raw_url)
+    except ValueError:
+        return False
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    host = parsed.hostname
+    if not host:
+        return False
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        return False
+    for info in infos:
+        addr = info[4][0]
+        try:
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            return False
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved:
+            return False
+    return True
 
 
 async def _run(payload: dict) -> str:
@@ -72,16 +110,28 @@ class handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("content-length", "0"))
             body = self.rfile.read(length) if length > 0 else b"{}"
             payload = json.loads(body.decode("utf-8"))
-            if not payload.get("root_url"):
+            root_url = payload.get("root_url")
+            if not root_url:
                 self._respond(400, {"error": "root_url required"})
+                return
+            if not _is_safe_public_url(root_url):
+                self._respond(400, {"error": "root_url must be http(s) and resolve to a public IP"})
+                return
+            job_url = payload.get("job_url")
+            if job_url and not _is_safe_public_url(job_url):
+                self._respond(400, {"error": "job_url must be http(s) and resolve to a public IP"})
                 return
             result = asyncio.run(_run(payload))
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(result.encode("utf-8"))
-        except Exception as exc:  # noqa: BLE001
-            self._respond(500, {"error": str(exc)[:200]})
+        except Exception:  # noqa: BLE001
+            # Do NOT echo str(exc) — orchestrator exceptions can carry URLs
+            # and response bodies from third-party services we hit on the
+            # user's behalf. Generic message only; observability is the
+            # platform's exception hook.
+            self._respond(500, {"error": "compile failed"})
 
     def _respond(self, status: int, body: dict) -> None:
         self.send_response(status)
