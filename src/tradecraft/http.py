@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import socket
 import time
 from collections import defaultdict
 from types import TracebackType
@@ -23,12 +24,59 @@ def _user_agent() -> str:
     )
 
 
-def _is_private_host(host: str) -> bool:
+def _is_private_host(host: str, *, resolve_dns: bool = True) -> bool:
+    """Return True if `host` is an IP literal in a private range OR (when
+    resolve_dns is True) a hostname whose DNS resolution yields any private,
+    loopback, link-local, multicast, or reserved IP.
+
+    The DNS-aware check defends against an attacker who controls DNS for a
+    domain they own and points it at AWS instance metadata (169.254.169.254),
+    RFC1918 ranges, or loopback. Pass `resolve_dns=False` only for synthetic
+    test inputs where you've already validated the resolution path.
+    """
+    # 1. Literal IP check.
     try:
         ip = ipaddress.ip_address(host)
     except ValueError:
-        return host.lower() in {"localhost", "localhost.localdomain"}
-    return ip.is_private or ip.is_loopback or ip.is_link_local
+        ip = None
+    if ip is not None:
+        return (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+        )
+
+    # 2. Well-known loopback names.
+    if host.lower() in {"localhost", "localhost.localdomain"}:
+        return True
+
+    # 3. DNS-aware check — resolve and reject if ANY answer is in a
+    # disallowed range.
+    if not resolve_dns:
+        return False
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        # Host doesn't resolve; let the caller surface the underlying
+        # network error rather than masking it as "private".
+        return False
+    for info in infos:
+        addr = info[4][0]
+        try:
+            resolved = ipaddress.ip_address(addr)
+        except ValueError:
+            continue
+        if (
+            resolved.is_private
+            or resolved.is_loopback
+            or resolved.is_link_local
+            or resolved.is_multicast
+            or resolved.is_reserved
+        ):
+            return True
+    return False
 
 
 class _TokenBucket:

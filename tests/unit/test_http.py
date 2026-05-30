@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import socket
 import time
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -110,6 +112,28 @@ async def test_redirect_to_private_ip_is_blocked(cfg: HttpConfig, cache: Cache) 
     async with HttpClient(cfg, cache) as client:
         with pytest.raises(ValueError, match="private"):
             await client.get("https://example.com/")
+
+
+async def test_dns_resolved_private_host_is_blocked(
+    cfg: HttpConfig, cache: Cache, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Defense against attacker-controlled DNS pointing at a private IP.
+
+    `metadata.evil.test` is not literally a private IP — it's a hostname. The
+    string check passes. The DNS-aware check (socket.getaddrinfo) resolves it
+    to 169.254.169.254 (AWS metadata) which IS in a reserved range. The fetch
+    must be blocked BEFORE the network call.
+    """
+    def fake_getaddrinfo(host: str, *args: Any, **kwargs: Any) -> list:
+        if host == "metadata.evil.test":
+            # AddrInfo tuple: (family, type, proto, canonname, sockaddr)
+            return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("169.254.169.254", 0))]
+        return socket.getaddrinfo(host, *args, **kwargs)
+
+    monkeypatch.setattr("tradecraft.http.socket.getaddrinfo", fake_getaddrinfo)
+    async with HttpClient(cfg, cache) as client:
+        with pytest.raises(ValueError, match="private"):
+            await client.get("http://metadata.evil.test/latest/meta-data/")
 
 
 async def test_per_host_rate_limit_enforced(tmp_path: Path) -> None:
