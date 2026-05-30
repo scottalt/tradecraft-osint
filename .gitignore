@@ -43,3 +43,9 @@ Thumbs.db
 # Tradecraft outputs (don't commit user dossiers)
 dossiers/
 .cache/tradecraft/
+
+# Web app
+web/node_modules/
+web/.next/
+web/.vercel/
+web/api/_vendor/
