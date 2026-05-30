@@ -107,3 +107,92 @@ def test_collection_notes_reports_errors() -> None:
     assert "Collection notes" in md
     assert "footprint" in md
     assert "timeout" in md
+
+
+def test_renders_breaches_section_when_present() -> None:
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    findings = Findings(
+        target=target,
+        results=[
+            CollectorResult(
+                name="breaches",
+                data={"breaches": [{"name": "AcmeOldLeak", "date": "2019-03-15", "pwn_count": 1500000, "data_classes": ["Email", "Passwords"]}]},
+                signals=[Signal.BREACH_HISTORY],
+                errors=[],
+                duration_ms=50,
+            )
+        ],
+    )
+    md = render_markdown(findings, [])
+    assert "## Breach history" in md
+    assert "AcmeOldLeak" in md
+    assert "2019-03-15" in md
+
+
+def test_renders_github_section_when_present() -> None:
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    findings = Findings(
+        target=target,
+        results=[
+            CollectorResult(
+                name="github",
+                data={
+                    "org": {"login": "acme", "public_repos": 47},
+                    "repo_count": 47,
+                    "languages": {"Go": 20, "TypeScript": 15},
+                    "top_repos": [{"name": "acme-cli", "stars": 4200, "language": "Go"}],
+                },
+                signals=[Signal.OSS_FORWARD_CULTURE],
+                errors=[],
+                duration_ms=50,
+            )
+        ],
+    )
+    md = render_markdown(findings, [])
+    assert "## GitHub presence" in md
+    assert "acme-cli" in md
+    assert "Go" in md
+
+
+def test_renders_news_section_when_present() -> None:
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    findings = Findings(
+        target=target,
+        results=[
+            CollectorResult(
+                name="news",
+                data={
+                    "items": [
+                        {"title": "Acme raises $200M Series D", "source": "google_news", "published": "Fri, 16 May 2026 00:00:00 GMT"},
+                    ],
+                    "headline_count": 1,
+                },
+                signals=[Signal.RECENT_FUNDING],
+                errors=[],
+                duration_ms=50,
+            )
+        ],
+    )
+    md = render_markdown(findings, [])
+    assert "## News & timeline" in md
+    assert "Series D" in md
+
+
+def test_renders_business_section_when_present() -> None:
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    findings = Findings(
+        target=target,
+        results=[
+            CollectorResult(
+                name="business",
+                data={"ticker": "ACME", "wikipedia": {"Founded": "2018", "Industry": "Security software"}},
+                signals=[Signal.PUBLIC_COMPANY, Signal.WIKIPEDIA_INFOBOX_PRESENT],
+                errors=[],
+                duration_ms=50,
+            )
+        ],
+    )
+    md = render_markdown(findings, [])
+    assert "## Business & financial signals" in md
+    assert "ACME" in md
+    assert "Security software" in md
