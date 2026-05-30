@@ -81,7 +81,7 @@ class Question(BaseModel):
     text: str
     confidence: Literal["high", "med", "low"]
     role_tags: set[Role]
-    evidence_signal: Signal
+    evidence_signal: Signal | None = None
     source_collector: str
     is_starred: bool = False
 
