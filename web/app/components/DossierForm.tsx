@@ -43,8 +43,23 @@ export function DossierForm() {
     }
   }
 
+  // When NEXT_PUBLIC_DEMO_MODE is set at build time, the site is a static
+  // export (e.g. GitHub Pages) with no Python backend. The form still renders
+  // so the design is on display, but submission shows a clear notice instead
+  // of failing silently.
+  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (demoMode) {
+      setError(
+        "Design preview only — no backend on this host. " +
+          "Install the CLI (pipx install tradecraft) for real reconnaissance, " +
+          "or see DEPLOY.md to deploy the full hosted version with the Python functions to Vercel.",
+      );
+      setState("error");
+      return;
+    }
     setState("running");
     setError(null);
     try {
