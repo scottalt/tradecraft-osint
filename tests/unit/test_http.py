@@ -140,9 +140,60 @@ async def test_robots_disallowed_raises(cfg: HttpConfig, cache: Cache) -> None:
     respx.get("https://example.com/admin/secret").mock(
         return_value=httpx.Response(200, text="should never be fetched")
     )
-    async with HttpClient(cfg, cache) as client:
+    async with HttpClient(cfg, cache, target_host="example.com") as client:
         with pytest.raises(RobotsDisallowed):
             await client.get("https://example.com/admin/secret")
+
+
+@respx.mock
+async def test_non_target_host_bypasses_robots(cfg: HttpConfig, cache: Cache) -> None:
+    """Robots.txt applies to the target only. OSINT-API calls to third-party
+    services (crt.sh, GitHub API, etc.) are exempt even when their robots.txt
+    disallows the path. The target here is example.com; the request is to crt.sh."""
+    crtsh_robots = respx.get("https://crt.sh/robots.txt").mock(
+        return_value=httpx.Response(200, text="User-agent: *\nDisallow: /\n")
+    )
+    crtsh_query = respx.get("https://crt.sh/").mock(
+        return_value=httpx.Response(200, json=[{"name_value": "foo.example.com"}])
+    )
+    async with HttpClient(cfg, cache, target_host="example.com") as client:
+        resp = await client.get("https://crt.sh/?q=example.com&output=json")
+    assert resp.status_code == 200
+    # We must not even fetch crt.sh's robots.txt — it's not the target.
+    assert crtsh_robots.call_count == 0
+    assert crtsh_query.call_count == 1
+
+
+@respx.mock
+async def test_target_subdomain_still_checks_robots(cfg: HttpConfig, cache: Cache) -> None:
+    """A subdomain of the target (api.example.com when target is example.com) is
+    still subject to the target's robots policy — the rule applies to the brand."""
+    respx.get("https://api.example.com/robots.txt").mock(
+        return_value=httpx.Response(200, text="User-agent: *\nDisallow: /private/\n")
+    )
+    respx.get("https://api.example.com/private/data").mock(
+        return_value=httpx.Response(200, text="should never be fetched")
+    )
+    async with HttpClient(cfg, cache, target_host="example.com") as client:
+        with pytest.raises(RobotsDisallowed):
+            await client.get("https://api.example.com/private/data")
+
+
+@respx.mock
+async def test_no_target_host_skips_robots_entirely(cfg: HttpConfig, cache: Cache) -> None:
+    """With no target_host configured (e.g. lib usage outside the CLI), no robots
+    check runs — there's no 'target' to apply the policy to."""
+    robots = respx.get("https://example.com/robots.txt").mock(
+        return_value=httpx.Response(200, text="User-agent: *\nDisallow: /\n")
+    )
+    route = respx.get("https://example.com/anything").mock(
+        return_value=httpx.Response(200, text="ok")
+    )
+    async with HttpClient(cfg, cache) as client:  # target_host omitted
+        resp = await client.get("https://example.com/anything")
+    assert resp.text == "ok"
+    assert robots.call_count == 0
+    assert route.call_count == 1
 
 
 @respx.mock

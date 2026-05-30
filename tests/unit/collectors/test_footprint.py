@@ -84,6 +84,58 @@ async def test_no_staging_subdomain_no_signal(http, fixtures) -> None:
     assert Signal.OPEN_STAGING_SUBDOMAIN not in result.signals
 
 
+@pytest.mark.parametrize(
+    "subdomain,should_fire",
+    [
+        # Real-world patterns observed against hig.com (the test that motivated this regex):
+        ("staging-br.acme.com", True),
+        ("esubscribe-qa.acme.com", True),
+        ("subscribe-uat.acme.com", True),
+        ("dev-portal.acme.com", True),
+        # Classic dotted form must still match:
+        ("staging.acme.com", True),
+        ("dev.acme.com", True),
+        ("qa.acme.com", True),
+        ("uat.acme.com", True),
+        # Words that include staging keywords as substrings are NOT pre-prod:
+        ("developer.acme.com", False),  # "dev" inside "developer"
+        ("testimonials.acme.com", False),  # "test" inside "testimonials"
+        ("devops.acme.com", False),  # "dev" inside "devops" — production tool
+        # Unrelated production subdomains:
+        ("events.acme.com", False),
+        ("api.acme.com", False),
+        ("prompts.acme.com", False),
+    ],
+)
+@respx.mock
+async def test_staging_signal_detection(
+    http,
+    fixtures,
+    subdomain: str,
+    should_fire: bool,
+) -> None:
+    client, cache = http
+    crtsh_payload = [{"name_value": f"acme.com\n{subdomain}"}]
+    respx.get("https://crt.sh/").mock(return_value=httpx.Response(200, json=crtsh_payload))
+    respx.get("https://acme.com/").mock(
+        return_value=httpx.Response(200, text="<html>hi</html>", headers=fixtures["headers"])
+    )
+    respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    respx.get("https://acme.com/sitemap.xml").mock(return_value=httpx.Response(404))
+
+    monkey_dns = AsyncMock(return_value={"A": [], "MX": [], "TXT": []})
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    collector = FootprintCollector(_dns_lookup=monkey_dns)
+    result = await collector.run(ctx)
+
+    fired = Signal.OPEN_STAGING_SUBDOMAIN in result.signals
+    assert fired is should_fire, (
+        f"{subdomain}: expected fire={should_fire}, got fire={fired}, "
+        f"subdomains={result.data['subdomains']}"
+    )
+
+
 @respx.mock
 async def test_csp_present_no_signal(http, fixtures) -> None:
     client, cache = http

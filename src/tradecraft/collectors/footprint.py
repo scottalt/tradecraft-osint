@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Awaitable, Callable
 from typing import Any, ClassVar
 from urllib.parse import urlparse
@@ -17,7 +18,15 @@ from tradecraft.models import (
     Signal,
 )
 
-_STAGING_PREFIXES = ("staging.", "dev.", "test.", "qa.", "uat.")
+# Pre-prod indicators matched as whole words within the leftmost subdomain
+# label. `\b` (word boundary) prevents false positives like "developer"
+# (contains "dev"), "testimonials" ("test"), "devops" ("dev"). It DOES match
+# dashed forms (`staging-br`, `subscribe-qa`, `dev-portal`) because `-` is a
+# non-word char so `\bstaging\b` finds a boundary at the dash.
+_STAGING_WORDS_RE = re.compile(
+    r"\b(staging|dev|test|qa|uat|sandbox|preview)\b",
+    re.IGNORECASE,
+)
 _DNS_RECORD_TYPES = ("A", "AAAA", "MX", "NS", "TXT", "CAA")
 _DnsLookup = Callable[[str], Awaitable[dict[str, list[str]]]]
 
@@ -92,7 +101,7 @@ class FootprintCollector:
                     if not s.startswith("*") and (s == host or s.endswith("." + host))
                 }
             )
-            if any(s.startswith(_STAGING_PREFIXES) for s in cleaned_subs):
+            if any(_STAGING_WORDS_RE.search(s.split(".", 1)[0]) for s in cleaned_subs):
                 signals.append(Signal.OPEN_STAGING_SUBDOMAIN)
 
         return CollectorResult(

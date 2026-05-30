@@ -121,7 +121,8 @@ async def _run(
         default_ttl=cfg.cache.ttl_default_seconds,
         enabled=cfg.cache.enabled,
     )
-    async with HttpClient(cfg.http, cache) as http:
+    target_host = urlparse(str(target.root_url)).hostname
+    async with HttpClient(cfg.http, cache, target_host=target_host) as http:
         orch = Orchestrator(_default_collectors(), http=http, cache=cache)
         findings = await orch.run(
             target,

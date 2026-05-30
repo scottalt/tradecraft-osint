@@ -57,10 +57,19 @@ class _TokenBucket:
 class HttpClient:
     """httpx wrapper enforcing the project's hard rules."""
 
-    def __init__(self, config: HttpConfig, cache: Cache, *, respect_robots: bool = True) -> None:
+    def __init__(
+        self,
+        config: HttpConfig,
+        cache: Cache,
+        *,
+        respect_robots: bool = True,
+        target_host: str | None = None,
+    ) -> None:
         self.config = config
         self.cache = cache
         self.respect_robots = respect_robots
+        # Lower-cased so subdomain matching is case-insensitive.
+        self.target_host = target_host.lower() if target_host else None
         self._buckets: dict[str, _TokenBucket] = defaultdict(
             lambda: _TokenBucket(config.per_host_rps)
         )
@@ -135,7 +144,7 @@ class HttpClient:
         if _is_private_host(host):
             raise ValueError(f"refusing to fetch private host: {host}")
 
-        if self.respect_robots:
+        if self.respect_robots and self._robots_applies_to(host):
             policy = await self._get_robots_policy(host, scheme)
             path = parsed.path or "/"
             if not policy.is_allowed(path):
@@ -189,6 +198,17 @@ class HttpClient:
             self._check_size(response)
             self.cache.set(cache_key, response.content)
             return response
+
+    def _robots_applies_to(self, host: str) -> bool:
+        """robots.txt enforcement is scoped to the target's host and its
+        subdomains. Third-party services we use as OSINT APIs (crt.sh, the
+        GitHub API, Wikipedia, etc.) are exempt: we're using their documented
+        endpoints as tools, not crawling them as a target. If no target is
+        configured (e.g. lib usage outside the CLI), nothing is checked."""
+        if self.target_host is None:
+            return False
+        host = host.lower()
+        return host == self.target_host or host.endswith("." + self.target_host)
 
     def _check_redirect(self, absolute_location: str) -> None:
         target_host = urlparse(absolute_location).hostname or ""

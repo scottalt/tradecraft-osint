@@ -6,6 +6,37 @@ All notable changes to this project will be documented here. Follows
 
 ## [Unreleased]
 
+## [0.1.0a1] - 2026-05-25
+
+Surfaced by the first real-world test run (against a PE firm's public surface).
+Both fixes are silent-failure bugs: the old code returned an empty result with
+no error, masking the underlying problem.
+
+### Fixed
+
+- **robots.txt enforcement is now target-scoped.** The previous release
+  respected robots on every host the tool called, including documented
+  OSINT-API services (crt.sh, GitHub API, Wikipedia). Real targets often
+  have a strict robots policy on those services, so subdomain enumeration
+  silently produced zero results. robots.txt now applies only to the
+  `--target` host and its subdomains; third-party APIs we use as tools are
+  exempt. New `HttpClient(target_host=...)` parameter; CLI passes it
+  automatically. (`src/tradecraft/http.py`)
+- **Pre-prod subdomain detection now catches dashed forms.** Replaced the
+  `startswith("staging.", "dev.", ...)` check with a word-boundary regex
+  (`\b(staging|dev|test|qa|uat|sandbox|preview)\b`) applied to the leftmost
+  label. Now catches `staging-br.example.com`, `subscribe-qa.example.com`,
+  `dev-portal.example.com` (which were 100% missed before) while preserving
+  the false-negative guard for `developer.example.com`, `devops.example.com`,
+  `testimonials.example.com`. (`src/tradecraft/collectors/footprint.py`)
+
+### Known limitations
+
+- The `data` role still has near-zero question coverage. The `footprint`
+  signals (`missing_csp`, `missing_hsts`, `open_staging_subdomain`) are tagged
+  for cybersec/devops only. A real-world run with `--role data` still yields
+  an empty questions section. v0.2.0 will broaden the template library.
+
 ## [0.1.0-alpha] - 2026-05-24
 
 ### Added
