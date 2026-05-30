@@ -212,3 +212,31 @@ def test_renders_business_section_when_present() -> None:
     assert "## Business & financial signals" in md
     assert "ACME" in md
     assert "Security software" in md
+
+
+def test_ai_questions_render_in_deep_dive_section() -> None:
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    findings = Findings(target=target, results=[])
+    questions = [
+        Question(
+            text="Heuristic Q",
+            confidence="med",
+            role_tags={Role.CYBERSECURITY},
+            evidence_signal=Signal.MISSING_CSP,
+            source_collector="footprint",
+            is_starred=True,
+        ),
+        Question(
+            text="AI Q one",
+            confidence="high",
+            role_tags={Role.CYBERSECURITY},
+            evidence_signal=None,
+            source_collector="ai",
+            is_starred=False,
+        ),
+    ]
+    md = render_markdown(findings, questions)
+    assert "### Deep dive (AI)" in md
+    assert "AI Q one" in md
+    # Heuristic question still in top picks
+    assert "Heuristic Q" in md

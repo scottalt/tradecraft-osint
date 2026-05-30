@@ -268,8 +268,11 @@ def _questions_section(questions: Sequence[Question]) -> str:
         lines.append("")
         return "\n".join(lines)
 
-    starred = [q for q in questions if q.is_starred]
-    rest = [q for q in questions if not q.is_starred]
+    heuristic = [q for q in questions if q.source_collector != "ai"]
+    ai = [q for q in questions if q.source_collector == "ai"]
+
+    starred = [q for q in heuristic if q.is_starred]
+    rest = [q for q in heuristic if not q.is_starred]
     if starred:
         lines.append("### Top picks")
         lines.append("")
@@ -282,16 +285,25 @@ def _questions_section(questions: Sequence[Question]) -> str:
         for q in rest:
             lines.append(_format_question(q))
         lines.append("")
+    if ai:
+        lines.append("### Deep dive (AI)")
+        lines.append("")
+        for q in ai:
+            lines.append(_format_question(q))
+        lines.append("")
     return "\n".join(lines)
 
 
 def _format_question(q: Question) -> str:
     tags = " ".join(f"`{r.value}`" for r in sorted(q.role_tags))
-    evidence = q.evidence_signal.value if q.evidence_signal is not None else "n/a"
+    evidence = (
+        f"`{q.evidence_signal.value}` from `{q.source_collector}`"
+        if q.evidence_signal is not None
+        else f"AI deep-dive (`{q.source_collector}`)"
+    )
     return (
         f"- **{q.text}**  \n"
-        f"  _confidence:_ `{q.confidence}` · _evidence:_ `{evidence}` "
-        f"from `{q.source_collector}` · _roles:_ {tags}"
+        f"  _confidence:_ `{q.confidence}` · _evidence:_ {evidence} · _roles:_ {tags}"
     )
 
 

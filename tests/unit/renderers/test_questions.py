@@ -33,3 +33,26 @@ def test_renders_starred_first_then_rest() -> None:
 def test_empty_questions_renders_placeholder() -> None:
     out = render_questions([], company_name="Acme")
     assert "No heuristic-driven questions" in out
+
+
+def test_questions_standalone_has_deep_dive_subsection() -> None:
+    qs = [
+        Question(
+            text="Heur",
+            confidence="med",
+            role_tags={Role.CYBERSECURITY},
+            evidence_signal=Signal.MISSING_CSP,
+            source_collector="footprint",
+            is_starred=False,
+        ),
+        Question(
+            text="AI question",
+            confidence="high",
+            role_tags={Role.CYBERSECURITY},
+            evidence_signal=None,
+            source_collector="ai",
+        ),
+    ]
+    out = render_questions(qs, company_name="Acme")
+    assert "## Deep dive (AI)" in out
+    assert "AI question" in out
