@@ -1,0 +1,34 @@
+[
+  {
+    "Name": "AcmeOldLeak",
+    "Title": "Acme 2019 leak",
+    "Domain": "acme.com",
+    "BreachDate": "2019-03-15",
+    "AddedDate": "2019-04-01T00:00:00Z",
+    "PwnCount": 1500000,
+    "Description": "Test breach for fixture use.",
+    "DataClasses": ["Email addresses", "Passwords"],
+    "IsVerified": true,
+    "IsFabricated": false,
+    "IsSensitive": false,
+    "IsRetired": false,
+    "IsSpamList": false,
+    "IsMalware": false
+  },
+  {
+    "Name": "AcmeRecent",
+    "Title": "Acme 2025 incident",
+    "Domain": "acme.com",
+    "BreachDate": "2025-08-20",
+    "AddedDate": "2025-09-10T00:00:00Z",
+    "PwnCount": 42000,
+    "Description": "Recent test breach for fixture use.",
+    "DataClasses": ["Email addresses"],
+    "IsVerified": true,
+    "IsFabricated": false,
+    "IsSensitive": false,
+    "IsRetired": false,
+    "IsSpamList": false,
+    "IsMalware": false
+  }
+]
