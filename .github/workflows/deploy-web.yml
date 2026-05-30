@@ -1,0 +1,61 @@
+name: Deploy web to Vercel
+
+# Triggers a production deploy of the web/ subdirectory to Vercel
+# on every push to main. Inactive until repo secrets are configured:
+#   VERCEL_TOKEN       — https://vercel.com/account/settings/tokens
+#   VERCEL_ORG_ID      — team_YpYW3uhGGb2avxTb8DN1kMe8 (from list_teams)
+#   VERCEL_PROJECT_ID  — created on first Vercel import; visible at
+#                        https://vercel.com/scott-altiparmaks-projects/tradecraft-osint/settings
+#
+# Until all three secrets exist, this job no-ops via the early
+# `if: secrets.VERCEL_TOKEN != ''` guard. Once set, no further manual
+# action is required for any future change to web/.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "src/tradecraft/**"  # changes to CLI source require a re-vendor (handled below)
+      - ".github/workflows/deploy-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy web/ to Vercel production
+    runs-on: ubuntu-latest
+    # No-op if the user hasn't set the Vercel secrets yet. Workflow stays
+    # green and dormant rather than failing every push.
+    if: ${{ vars.ENABLE_VERCEL_DEPLOY == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Re-vendor tradecraft into web/api/_vendor
+        run: bash web/scripts/vendor-tradecraft.sh
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment
+        working-directory: web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build with Vercel
+        working-directory: web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy prebuilt artifacts to Vercel production
+        working-directory: web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
