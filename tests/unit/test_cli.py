@@ -136,9 +136,7 @@ def test_ai_flag_with_provider_appends_questions(
 ) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     fake_provider = AsyncMock()
-    fake_provider.generate = AsyncMock(
-        return_value="1. AI question one\n2. AI question two\n"
-    )
+    fake_provider.generate = AsyncMock(return_value="1. AI question one\n2. AI question two\n")
     with (
         patch("tradecraft.cli._default_collectors", return_value=[StubFootprint()]),
         patch("tradecraft.cli.build_provider", return_value=fake_provider),
