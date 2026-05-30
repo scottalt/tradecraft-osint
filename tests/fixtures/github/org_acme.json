@@ -1,0 +1,8 @@
+{
+  "login": "acme",
+  "id": 12345,
+  "name": "Acme Corporation",
+  "public_repos": 47,
+  "followers": 1200,
+  "html_url": "https://github.com/acme"
+}

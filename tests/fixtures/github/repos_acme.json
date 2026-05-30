@@ -1,0 +1,15 @@
+[
+  {"name": "acme-cli", "language": "Go", "pushed_at": "2026-05-20T00:00:00Z", "stargazers_count": 4200, "fork": false, "archived": false},
+  {"name": "acme-platform", "language": "TypeScript", "pushed_at": "2026-05-15T00:00:00Z", "stargazers_count": 1500, "fork": false, "archived": false},
+  {"name": "acme-policy-engine", "language": "Rust", "pushed_at": "2026-04-29T00:00:00Z", "stargazers_count": 800, "fork": false, "archived": false},
+  {"name": "acme-old-thing", "language": "Python", "pushed_at": "2021-01-01T00:00:00Z", "stargazers_count": 50, "fork": false, "archived": true},
+  {"name": "fork-of-x", "language": "Go", "pushed_at": "2025-12-01T00:00:00Z", "stargazers_count": 1, "fork": true, "archived": false},
+  {"name": "acme-x1", "language": "Go", "pushed_at": "2025-11-01T00:00:00Z", "stargazers_count": 5, "fork": false, "archived": false},
+  {"name": "acme-x2", "language": "Go", "pushed_at": "2025-11-01T00:00:00Z", "stargazers_count": 5, "fork": false, "archived": false},
+  {"name": "acme-x3", "language": "Go", "pushed_at": "2025-11-01T00:00:00Z", "stargazers_count": 5, "fork": false, "archived": false},
+  {"name": "acme-x4", "language": "Go", "pushed_at": "2025-11-01T00:00:00Z", "stargazers_count": 5, "fork": false, "archived": false},
+  {"name": "acme-x5", "language": "Go", "pushed_at": "2025-11-01T00:00:00Z", "stargazers_count": 5, "fork": false, "archived": false},
+  {"name": "acme-x6", "language": "Go", "pushed_at": "2025-11-01T00:00:00Z", "stargazers_count": 5, "fork": false, "archived": false},
+  {"name": "acme-x7", "language": "Go", "pushed_at": "2025-11-01T00:00:00Z", "stargazers_count": 5, "fork": false, "archived": false},
+  {"name": "acme-x8", "language": "Go", "pushed_at": "2025-11-01T00:00:00Z", "stargazers_count": 5, "fork": false, "archived": false}
+]
