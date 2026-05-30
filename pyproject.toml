@@ -47,6 +47,10 @@ dev = [
     "anthropic>=0.39",
     "openai>=1.50",
 ]
+ai = [
+    "anthropic>=0.39",
+    "openai>=1.50",
+]
 
 [project.scripts]
 tradecraft = "tradecraft.cli:app"

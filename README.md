@@ -19,9 +19,32 @@ Free public sources only. No paid APIs required. Optional AI analysis via your o
 ## Install
 
 ```bash
+# Core CLI (heuristic questions only)
 pipx install tradecraft
-# or
-uv tool install tradecraft
+
+# Plus BYOK AI providers (Anthropic, OpenAI, OpenAI-compatible)
+pipx install 'tradecraft[ai]'
+
+# Ollama works out of the box with the core install — no extra package needed.
+```
+
+### AI providers (BYOK)
+
+`tradecraft` never talks to AI providers unless you pass `--ai`. Set one
+of the following env-var groups before running:
+
+| Provider | Env vars | Model flag |
+|---|---|---|
+| `anthropic` | `ANTHROPIC_API_KEY` | `--ai-model claude-sonnet-4-6` |
+| `openai` | `OPENAI_API_KEY` | `--ai-model gpt-4o` |
+| `ollama` | `OLLAMA_HOST` (default `http://localhost:11434`) | `--ai-model llama3.1:8b` |
+| `openai-compat` | `OPENAI_COMPAT_BASE_URL` + `OPENAI_COMPAT_KEY` + `TRADECRAFT_AI_OPENAI_COMPAT_MODEL` | `--ai-model <model>` |
+
+Example:
+
+```bash
+export ANTHROPIC_API_KEY=...
+tradecraft https://acme.com --ai anthropic
 ```
 
 ## Usage

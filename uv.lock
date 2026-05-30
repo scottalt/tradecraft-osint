@@ -1026,6 +1026,10 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+ai = [
+    { name = "anthropic" },
+    { name = "openai" },
+]
 dev = [
     { name = "anthropic" },
     { name = "coverage" },
@@ -1041,12 +1045,14 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", marker = "extra == 'ai'", specifier = ">=0.39" },
     { name = "anthropic", marker = "extra == 'dev'", specifier = ">=0.39" },
     { name = "coverage", marker = "extra == 'dev'", specifier = ">=7.5" },
     { name = "dnspython", specifier = ">=2.6" },
     { name = "feedparser", specifier = ">=6.0" },
     { name = "httpx", extras = ["http2"], specifier = ">=0.27" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10" },
+    { name = "openai", marker = "extra == 'ai'", specifier = ">=1.50" },
     { name = "openai", marker = "extra == 'dev'", specifier = ">=1.50" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
@@ -1060,7 +1066,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.12" },
     { name = "types-requests", marker = "extra == 'dev'" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["ai", "dev"]
 
 [[package]]
 name = "typer"
