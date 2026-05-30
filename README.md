@@ -48,6 +48,15 @@ export ANTHROPIC_API_KEY=...
 tradecraft https://acme.com --ai anthropic
 ```
 
+## Hosted preview
+
+Try tradecraft without installing anything at the hosted demo (URL filled in
+post-deploy). The hosted preview runs only `footprint`, `company`, `job`, and
+`github` collectors — by design. For the full collector roster and BYOK AI,
+install the CLI above.
+
+Source for the web app is in [`web/`](web/).
+
 ## Usage
 
 ```bash
