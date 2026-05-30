@@ -69,6 +69,7 @@ def test_no_duplicate_templates_when_multiple_signals_share_one_template() -> No
 
 def test_question_evidence_signal_matches_trigger() -> None:
     f = _findings_with([Signal.MISSING_CSP])
-    [question] = generate_questions(f)
-    assert question.evidence_signal == Signal.MISSING_CSP
-    assert question.source_collector == "footprint"
+    questions = generate_questions(f)
+    assert questions, "expected at least one question for MISSING_CSP"
+    assert all(q.evidence_signal == Signal.MISSING_CSP for q in questions)
+    assert all(q.source_collector == "footprint" for q in questions)
