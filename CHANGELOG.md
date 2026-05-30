@@ -6,6 +6,38 @@ All notable changes to this project will be documented here. Follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-25
+
+### Added
+
+- All seven remaining collectors are wired and registered:
+  - `breaches` — HIBP free domain endpoint; emits BREACH_HISTORY, BREACH_RECENT.
+  - `github` — org + public-repo listing; emits OSS_FORWARD_CULTURE, NO_PUBLIC_GITHUB.
+  - `news` — Google News RSS + HN Algolia; emits RECENT_SECURITY_INCIDENT,
+    RECENT_LAYOFFS, RECENT_FUNDING, RECENT_LEADERSHIP_CHANGE.
+  - `company` — about/team/careers/blog/press paths; emits FOUNDER_TECHNICAL,
+    PRODUCT_LIST_EMPTY, RECENT_PRESS_RELEASE.
+  - `job` — greenhouse/lever/generic JD parser; extracts stack keywords.
+  - `people` — eng-blog author bylines; emits STRONG_ENG_BRAND, QUIET_ENG_BRAND.
+  - `business` — SEC ticker JSON + Wikipedia infobox; emits PUBLIC_COMPANY,
+    WIKIPEDIA_INFOBOX_PRESENT.
+  - `ma` — Wikipedia infobox parent/subsidiaries; emits SUBSIDIARY_OF,
+    M_A_FREQUENT_ACQUIRER.
+- Template library expanded to ~45 templates spanning offensive, defensive,
+  AppSec, and GRC sub-disciplines. Every signal has cybersec coverage.
+- Markdown renderer gains per-collector sections; partial runs still render.
+
+### Deferred
+
+- LANGUAGES_MISMATCH_JOB / STACK_ALIGNMENT_STRONG signals require
+  cross-collector reads (job ← github). Wiring `findings_so_far` into
+  `CollectorContext` lands in v0.3.0.
+- RECENT_10K and Glassdoor parsing in `business` — both are brittle.
+- M_A_RECENT requires reliable date extraction — deferred.
+- BYOK AI analyzer and Anthropic / OpenAI / Ollama / OpenAI-compat providers
+  ship in v0.3.0.
+- Hosted web preview ships in v1.1.
+
 ## [0.1.0a1] - 2026-05-25
 
 Surfaced by the first real-world test run (against a PE firm's public surface).

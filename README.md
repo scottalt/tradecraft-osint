@@ -10,7 +10,7 @@ Free public sources only. No paid APIs required. Optional AI analysis via your o
 
 ## Status
 
-**Alpha (v0.1.0a1)** — walking skeleton with the `footprint` collector wired end-to-end. The remaining collectors (`breaches`, `github`, `news`, `company`, `job`, `people`, `business`, `m&a` — cybersec-prioritized order) and the BYOK AI analyzer ship in v0.2.0. Hosted web preview ships in v1.1.
+**v0.2.0** — full collector roster shipped. `footprint`, `breaches`, `github`, `news`, `company`, `job`, `people`, `business`, `ma` all run by default. BYOK AI analyzer ships in v0.3.0; hosted web preview ships in v1.1.
 
 [![CI](https://github.com/scottalt/tradecraft-osint/actions/workflows/ci.yml/badge.svg)](https://github.com/scottalt/tradecraft-osint/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
