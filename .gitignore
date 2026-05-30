@@ -48,4 +48,4 @@ dossiers/
 web/node_modules/
 web/.next/
 web/.vercel/
-web/api/_vendor/
+# web/api/_vendor/tradecraft/ IS checked in (see web/.gitignore for rationale)
