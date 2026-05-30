@@ -34,8 +34,9 @@ def render_questions(questions: Sequence[Question], *, company_name: str) -> str
 
 def _format(q: Question) -> str:
     tags = " ".join(f"`{r.value}`" for r in sorted(q.role_tags))
+    evidence = q.evidence_signal.value if q.evidence_signal is not None else "n/a"
     return (
         f"- **{q.text}**  \n"
         f"  _confidence:_ `{q.confidence}` · _evidence:_ "
-        f"`{q.evidence_signal.value}` from `{q.source_collector}` · _roles:_ {tags}"
+        f"`{evidence}` from `{q.source_collector}` · _roles:_ {tags}"
     )

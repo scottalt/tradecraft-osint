@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 import typer
 from rich.console import Console
 
+from tradecraft.analyzers.ai import generate_ai_questions
 from tradecraft.analyzers.heuristics import generate_questions
 from tradecraft.cache import Cache
 from tradecraft.collectors.base import Collector
@@ -28,6 +29,7 @@ from tradecraft.ethics import is_likely_person_name
 from tradecraft.http import HttpClient
 from tradecraft.models import Findings, Question, Role, Target
 from tradecraft.orchestrator import Orchestrator
+from tradecraft.providers.base import Provider, build_provider
 from tradecraft.renderers.json import render_json
 from tradecraft.renderers.markdown import render_markdown
 from tradecraft.renderers.questions import render_questions
@@ -81,6 +83,14 @@ def main(  # noqa: PLR0913
     json_only: Annotated[
         bool, typer.Option("--json", help="Print raw.json to stdout, no folder")
     ] = False,
+    ai: Annotated[
+        str | None,
+        typer.Option("--ai", help="AI provider: anthropic | openai | ollama | openai-compat"),
+    ] = None,
+    ai_model: Annotated[
+        str | None,
+        typer.Option("--ai-model", help="Override the default model for the chosen provider"),
+    ] = None,
     verbose: Annotated[
         bool, typer.Option("--verbose", "-v", help="Log every HTTP request")
     ] = False,
@@ -105,7 +115,7 @@ def main(  # noqa: PLR0913
     if no_cache:
         cfg = cfg.model_copy(update={"cache": cfg.cache.model_copy(update={"enabled": False})})
 
-    findings, questions = asyncio.run(_run(target, cfg, only, skip, verbose))
+    findings, questions = asyncio.run(_run(target, cfg, only, skip, verbose, ai, ai_model))
 
     if json_only:
         typer.echo(render_json(findings, questions))
@@ -121,12 +131,14 @@ def main(  # noqa: PLR0913
     console.print(f"[green]Dossier written to[/] {folder}")
 
 
-async def _run(
+async def _run(  # noqa: PLR0913
     target: Target,
     cfg: AppConfig,
     only: str | None,
     skip: str | None,
     verbose: bool,
+    ai: str | None,
+    ai_model: str | None,
 ) -> tuple[Findings, list[Question]]:
     cache_dir: Path
     if cfg.cache.directory:
@@ -153,6 +165,23 @@ async def _run(
                 f"[dim]{r.name}: {r.duration_ms} ms, signals={[s.value for s in r.signals]}[/]"
             )
     questions = generate_questions(findings)
+
+    if ai is not None:
+        provider: Provider | None
+        try:
+            provider = build_provider(ai, ai_model)
+        except ValueError as exc:
+            err_console.print(f"[yellow]AI disabled: {exc}[/]")
+            provider = None
+        if provider is None:
+            err_console.print(
+                "[yellow]AI disabled — provider env vars missing. "
+                "Continuing with heuristic questions only.[/]"
+            )
+        else:
+            ai_questions = await generate_ai_questions(findings, questions, provider)
+            questions.extend(ai_questions)
+
     return findings, questions
 
 

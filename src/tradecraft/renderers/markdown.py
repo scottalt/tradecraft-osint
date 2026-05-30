@@ -287,9 +287,10 @@ def _questions_section(questions: Sequence[Question]) -> str:
 
 def _format_question(q: Question) -> str:
     tags = " ".join(f"`{r.value}`" for r in sorted(q.role_tags))
+    evidence = q.evidence_signal.value if q.evidence_signal is not None else "n/a"
     return (
         f"- **{q.text}**  \n"
-        f"  _confidence:_ `{q.confidence}` · _evidence:_ `{q.evidence_signal.value}` "
+        f"  _confidence:_ `{q.confidence}` · _evidence:_ `{evidence}` "
         f"from `{q.source_collector}` · _roles:_ {tags}"
     )
 

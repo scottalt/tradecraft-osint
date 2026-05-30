@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import ClassVar
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -105,3 +105,58 @@ def test_default_collectors_includes_all_v0_2_modules() -> None:
         "business",
         "ma",
     }
+
+
+def test_ai_flag_with_no_provider_warns_and_continues(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # No API key => Anthropic.from_env returns None
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    with patch("tradecraft.cli._default_collectors", return_value=[StubFootprint()]):
+        result = runner.invoke(
+            app,
+            [
+                "https://acme.com",
+                "--company",
+                "Acme Corp",
+                "--ai",
+                "anthropic",
+                "--output",
+                str(tmp_path),
+            ],
+        )
+    # Should succeed (heuristic-only fallback), and stderr should mention AI disabled.
+    assert result.exit_code == 0
+    combined = (result.stdout or "") + (result.stderr or "")
+    assert "ai" in combined.lower()
+
+
+def test_ai_flag_with_provider_appends_questions(
+    runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    fake_provider = AsyncMock()
+    fake_provider.generate = AsyncMock(
+        return_value="1. AI question one\n2. AI question two\n"
+    )
+    with (
+        patch("tradecraft.cli._default_collectors", return_value=[StubFootprint()]),
+        patch("tradecraft.cli.build_provider", return_value=fake_provider),
+    ):
+        result = runner.invoke(
+            app,
+            [
+                "https://acme.com",
+                "--company",
+                "Acme Corp",
+                "--ai",
+                "anthropic",
+                "--output",
+                str(tmp_path),
+            ],
+        )
+    assert result.exit_code == 0, result.stdout
+    [folder] = list(tmp_path.iterdir())
+    raw = json.loads((folder / "raw.json").read_text())
+    ai_questions = [q for q in raw["questions"] if q["source_collector"] == "ai"]
+    assert len(ai_questions) == 2
