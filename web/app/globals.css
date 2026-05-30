@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/* Field Dossier design tokens — referenced by Tailwind v4 utilities as
+   bg-paper, text-ink, text-stamp-red, etc. */
+@theme {
+  --color-paper: #f4ead6;
+  --color-ink: #1a1612;
+  --color-stamp-red: #b8231a;
+  --color-stamp-blue: #1a3a5c;
+  --color-faded-ink: #5a5046;
+  --color-rule: #c4b8a0;
+
+  --font-typewriter: "Special Elite", "Courier New", monospace;
+  --font-data: "JetBrains Mono", "SF Mono", monospace;
+  --font-prose: "IBM Plex Serif", Georgia, serif;
+}
+
+/* Page-level baseline: cream paper with subtle grain texture. */
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-prose);
+}
+
+body {
+  /* SVG paper-grain texture. Inline so we don't ship a separate asset. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.45 0 0 0 0 0.4 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  min-height: 100vh;
+}
+
+/* Typewriter heading default. Apply explicitly via font-typewriter Tailwind class. */
+h1, h2, h3 {
+  font-family: var(--font-typewriter);
+  letter-spacing: 0.02em;
+}
+
+/* Monospace data style. */
+.data-cell {
+  font-family: var(--font-data);
+  font-size: 0.9em;
+}
+
+/* Hairline rule used in tables and section dividers. */
+.rule {
+  border: 1px solid var(--color-rule);
+}
+
+/* Stamp-style decorations get a deliberate skew + uppercase letterforms. */
+.stamp {
+  font-family: var(--font-typewriter);
+  text-transform: uppercase;
+  color: var(--color-stamp-red);
+  border: 2px solid var(--color-stamp-red);
+  padding: 0.25em 0.75em;
+  display: inline-block;
+  letter-spacing: 0.15em;
+  transform: rotate(-2deg);
+}
