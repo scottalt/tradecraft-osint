@@ -45,6 +45,7 @@ dev = [
     "mypy>=1.10",
     "types-requests",
     "anthropic>=0.39",
+    "openai>=1.50",
 ]
 
 [project.scripts]
