@@ -10,7 +10,8 @@ Free public sources only. No paid APIs required. Optional AI analysis via your o
 
 ## Status
 
-**v0.2.0** — full collector roster shipped. `footprint`, `breaches`, `github`, `news`, `company`, `job`, `people`, `business`, `ma` all run by default. BYOK AI analyzer ships in v0.3.0; hosted web preview ships in v1.1.
+**v0.3.0** — full CLI feature set. All 9 collectors + BYOK AI deep-dive layer
+(`--ai anthropic|openai|ollama|openai-compat`). Hosted web preview ships in v1.1.
 
 [![CI](https://github.com/scottalt/tradecraft-osint/actions/workflows/ci.yml/badge.svg)](https://github.com/scottalt/tradecraft-osint/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)

@@ -6,6 +6,37 @@ All notable changes to this project will be documented here. Follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-30
+
+### Added
+
+- BYOK AI deep-dive question layer. Pass `--ai <provider>` to append
+  a `Deep dive (AI)` subsection to the questions section, with synthesized,
+  role-tailored questions the heuristic engine couldn't produce.
+- Four provider adapters:
+  - `anthropic` (Anthropic Claude, default `claude-sonnet-4-6`) — uses
+    `cache_control: ephemeral` on the Findings payload so iterative tuning
+    is cheap.
+  - `openai` (OpenAI, default `gpt-4o`).
+  - `ollama` (local-only, no key needed, default `llama3.1:8b`).
+  - `openai-compat` (OpenRouter / Groq / LM Studio / vLLM / anyone speaking
+    the OpenAI chat-completions API).
+- New optional-dependencies extra `[ai]` so `pipx install 'tradecraft[ai]'`
+  pulls the Anthropic and OpenAI SDKs. Ollama and openai-compat (via the
+  openai SDK) work without extras.
+- `--ai-model` flag overrides the provider's default model.
+
+### Changed
+
+- `Question.evidence_signal` is now optional (AI-generated questions don't
+  cite a Signal; they cite "AI deep-dive" in the rendered footnote instead).
+
+### Deferred
+
+- Cross-collector signals (`LANGUAGES_MISMATCH_JOB` / `STACK_ALIGNMENT_STRONG`)
+  remain pending until `findings_so_far` is wired through `CollectorContext`.
+- Hosted web preview ships in v1.1.
+
 ## [0.2.0] - 2026-05-25
 
 ### Added
