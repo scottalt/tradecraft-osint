@@ -45,9 +45,7 @@ async def test_extracts_signals(http, fixtures) -> None:
     respx.get("https://acme.com/about").mock(
         return_value=httpx.Response(200, text=fixtures["about"])
     )
-    respx.get("https://acme.com/team").mock(
-        return_value=httpx.Response(200, text=fixtures["team"])
-    )
+    respx.get("https://acme.com/team").mock(return_value=httpx.Response(200, text=fixtures["team"]))
     # Default 404 for other paths
     respx.get("").mock(return_value=httpx.Response(404))
 

@@ -17,12 +17,39 @@ from tradecraft.models import (
 )
 
 _STACK_KEYWORDS = (
-    "Python", "Go", "Rust", "Java", "Kotlin", "Scala", "Ruby", "Node",
-    "TypeScript", "JavaScript", "C#", "C++", "Swift",
-    "Kubernetes", "Docker", "Terraform", "Ansible",
-    "AWS", "GCP", "Azure", "Vercel", "Cloudflare",
-    "PostgreSQL", "MySQL", "MongoDB", "Redis", "Kafka",
-    "React", "Next.js", "Django", "Flask", "FastAPI", "Spring",
+    "Python",
+    "Go",
+    "Rust",
+    "Java",
+    "Kotlin",
+    "Scala",
+    "Ruby",
+    "Node",
+    "TypeScript",
+    "JavaScript",
+    "C#",
+    "C++",
+    "Swift",
+    "Kubernetes",
+    "Docker",
+    "Terraform",
+    "Ansible",
+    "AWS",
+    "GCP",
+    "Azure",
+    "Vercel",
+    "Cloudflare",
+    "PostgreSQL",
+    "MySQL",
+    "MongoDB",
+    "Redis",
+    "Kafka",
+    "React",
+    "Next.js",
+    "Django",
+    "Flask",
+    "FastAPI",
+    "Spring",
 )
 
 
@@ -41,9 +68,7 @@ class JobCollector:
 
     async def run(self, ctx: CollectorContext) -> CollectorResult:
         if ctx.target.job_url is None:
-            return CollectorResult(
-                name=self.name, data={}, signals=[], errors=[], duration_ms=0
-            )
+            return CollectorResult(name=self.name, data={}, signals=[], errors=[], duration_ms=0)
 
         errors: list[CollectorError] = []
         signals: list[Signal] = []

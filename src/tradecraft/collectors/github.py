@@ -86,9 +86,7 @@ class GitHubCollector:
             if len(non_archived_owned) >= _OSS_FORWARD_REPO_THRESHOLD and recently_active:
                 signals.append(Signal.OSS_FORWARD_CULTURE)
 
-        languages = Counter(
-            r.get("language") for r in repos if r.get("language")
-        ).most_common(10)
+        languages = Counter(r.get("language") for r in repos if r.get("language")).most_common(10)
 
         return CollectorResult(
             name=self.name,

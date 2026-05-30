@@ -38,9 +38,7 @@ def test_metadata() -> None:
 async def test_strong_brand_signal(http, blog_html) -> None:
     client, cache = http
     respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
-    respx.get("https://acme.com/blog").mock(
-        return_value=httpx.Response(200, text=blog_html)
-    )
+    respx.get("https://acme.com/blog").mock(return_value=httpx.Response(200, text=blog_html))
     respx.get("").mock(return_value=httpx.Response(404))  # default 404
 
     target = Target(company_name="Acme", root_url="https://acme.com")

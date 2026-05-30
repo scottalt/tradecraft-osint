@@ -70,9 +70,7 @@ async def test_no_breach_no_signals(http) -> None:
 @respx.mock
 async def test_404_recorded_as_error_not_crash(http) -> None:
     client, cache = http
-    respx.get("https://haveibeenpwned.com/api/v3/breaches").mock(
-        return_value=httpx.Response(404)
-    )
+    respx.get("https://haveibeenpwned.com/api/v3/breaches").mock(return_value=httpx.Response(404))
     target = Target(company_name="Acme", root_url="https://acme.com")
     ctx = CollectorContext(target=target, http=client, cache=cache)
     result = await BreachesCollector().run(ctx)

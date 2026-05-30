@@ -31,7 +31,9 @@ _SIGNAL_PATTERNS: tuple[tuple[Signal, re.Pattern[str]], ...] = (
     ),
     (
         Signal.RECENT_LAYOFFS,
-        re.compile(r"\b(layoffs?|workforce\s+reduction|headcount\s+cut|staff\s+cuts?)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(layoffs?|workforce\s+reduction|headcount\s+cut|staff\s+cuts?)\b", re.IGNORECASE
+        ),
     ),
     (
         Signal.RECENT_FUNDING,

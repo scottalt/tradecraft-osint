@@ -60,7 +60,9 @@ async def test_public_company_and_wikipedia(http, fixtures) -> None:
 async def test_no_match(http) -> None:
     client, cache = http
     respx.get("https://www.sec.gov/files/company_tickers.json").mock(
-        return_value=httpx.Response(200, json={"0": {"cik_str": 1, "ticker": "XYZ", "title": "Unrelated"}})
+        return_value=httpx.Response(
+            200, json={"0": {"cik_str": 1, "ticker": "XYZ", "title": "Unrelated"}}
+        )
     )
     respx.get("").mock(return_value=httpx.Response(404))
     target = Target(company_name="Acme Corporation", root_url="https://acme.com")

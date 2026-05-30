@@ -116,7 +116,16 @@ def test_renders_breaches_section_when_present() -> None:
         results=[
             CollectorResult(
                 name="breaches",
-                data={"breaches": [{"name": "AcmeOldLeak", "date": "2019-03-15", "pwn_count": 1500000, "data_classes": ["Email", "Passwords"]}]},
+                data={
+                    "breaches": [
+                        {
+                            "name": "AcmeOldLeak",
+                            "date": "2019-03-15",
+                            "pwn_count": 1500000,
+                            "data_classes": ["Email", "Passwords"],
+                        }
+                    ]
+                },
                 signals=[Signal.BREACH_HISTORY],
                 errors=[],
                 duration_ms=50,
@@ -163,7 +172,11 @@ def test_renders_news_section_when_present() -> None:
                 name="news",
                 data={
                     "items": [
-                        {"title": "Acme raises $200M Series D", "source": "google_news", "published": "Fri, 16 May 2026 00:00:00 GMT"},
+                        {
+                            "title": "Acme raises $200M Series D",
+                            "source": "google_news",
+                            "published": "Fri, 16 May 2026 00:00:00 GMT",
+                        },
                     ],
                     "headline_count": 1,
                 },
@@ -185,7 +198,10 @@ def test_renders_business_section_when_present() -> None:
         results=[
             CollectorResult(
                 name="business",
-                data={"ticker": "ACME", "wikipedia": {"Founded": "2018", "Industry": "Security software"}},
+                data={
+                    "ticker": "ACME",
+                    "wikipedia": {"Founded": "2018", "Industry": "Security software"},
+                },
                 signals=[Signal.PUBLIC_COMPANY, Signal.WIKIPEDIA_INFOBOX_PRESENT],
                 errors=[],
                 duration_ms=50,

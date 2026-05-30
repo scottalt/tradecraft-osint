@@ -40,9 +40,7 @@ class BusinessCollector:
 
         sec_resp, wiki_resp = await asyncio.gather(
             self._safe(ctx.http.get(_SEC_TICKERS_URL), errors, "sec"),
-            self._safe(
-                ctx.http.get(_WIKIPEDIA_URL.format(slug=wiki_slug)), errors, "wiki"
-            ),
+            self._safe(ctx.http.get(_WIKIPEDIA_URL.format(slug=wiki_slug)), errors, "wiki"),
         )
 
         if sec_resp is not None and sec_resp.status_code == 200:
