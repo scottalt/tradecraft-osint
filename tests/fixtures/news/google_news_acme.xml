@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Acme Corp - Google News</title>
+    <item>
+      <title>Acme Corp raises $200M Series D at $1.5B valuation</title>
+      <link>https://example-news.test/acme-funding</link>
+      <pubDate>Fri, 16 May 2026 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Acme CEO Jane Smith steps down after eight years</title>
+      <link>https://example-news.test/acme-ceo-out</link>
+      <pubDate>Wed, 14 May 2026 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Acme confirms data breach affecting 42K customers</title>
+      <link>https://example-news.test/acme-breach</link>
+      <pubDate>Mon, 10 March 2025 00:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Acme reports record Q4 revenue growth</title>
+      <link>https://example-news.test/acme-q4</link>
+      <pubDate>Fri, 02 February 2026 00:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>

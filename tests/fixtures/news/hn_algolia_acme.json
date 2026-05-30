@@ -1,0 +1,16 @@
+{
+  "hits": [
+    {
+      "title": "Acme open-sources its policy engine",
+      "url": "https://example-news.test/acme-policy-engine",
+      "created_at": "2026-04-12T10:00:00Z",
+      "points": 412
+    },
+    {
+      "title": "Layoffs at Acme: 9% workforce reduction",
+      "url": "https://example-news.test/acme-layoffs",
+      "created_at": "2026-01-09T10:00:00Z",
+      "points": 287
+    }
+  ]
+}
