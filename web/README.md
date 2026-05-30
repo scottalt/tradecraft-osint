@@ -2,6 +2,8 @@
 
 The hosted preview of `tradecraft`.
 
+![Field Dossier home page](docs/screenshot-home.png)
+
 Deliberately narrow: runs only the four `safe_for_hosted=True` collectors
 (`footprint`, `company`, `job`, `github`). For the full collector roster
 (news, breaches, m&a, people, business) and the full BYOK AI integration,
