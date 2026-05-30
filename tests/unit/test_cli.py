@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from tradecraft.cli import app
+from tradecraft.cli import _default_collectors, app
 from tradecraft.collectors.base import Collector, CollectorContext
 from tradecraft.models import (
     CollectorResult,
@@ -89,3 +89,19 @@ def test_json_flag_writes_only_json_to_stdout(runner: CliRunner) -> None:
     assert result.exit_code == 0
     parsed = json.loads(result.stdout)
     assert parsed["target"]["company_name"] == "Acme Corp"
+
+
+def test_default_collectors_includes_all_v0_2_modules() -> None:
+    collectors = _default_collectors()
+    names = {c.name for c in collectors}
+    assert names == {
+        "footprint",
+        "breaches",
+        "github",
+        "news",
+        "company",
+        "job",
+        "people",
+        "business",
+        "ma",
+    }

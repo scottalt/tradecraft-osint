@@ -14,7 +14,15 @@ from rich.console import Console
 from tradecraft.analyzers.heuristics import generate_questions
 from tradecraft.cache import Cache
 from tradecraft.collectors.base import Collector
+from tradecraft.collectors.breaches import BreachesCollector
+from tradecraft.collectors.business import BusinessCollector
+from tradecraft.collectors.company import CompanyCollector
 from tradecraft.collectors.footprint import FootprintCollector
+from tradecraft.collectors.github import GitHubCollector
+from tradecraft.collectors.job import JobCollector
+from tradecraft.collectors.ma import MaCollector
+from tradecraft.collectors.news import NewsCollector
+from tradecraft.collectors.people import PeopleCollector
 from tradecraft.config import AppConfig, default_config_path, load_config
 from tradecraft.ethics import is_likely_person_name
 from tradecraft.http import HttpClient
@@ -35,7 +43,17 @@ err_console = Console(stderr=True)
 
 
 def _default_collectors() -> list[Collector]:
-    return [FootprintCollector()]
+    return [
+        FootprintCollector(),
+        BreachesCollector(),
+        GitHubCollector(),
+        NewsCollector(),
+        CompanyCollector(),
+        JobCollector(),
+        PeopleCollector(),
+        BusinessCollector(),
+        MaCollector(),
+    ]
 
 
 def _infer_company_name(root_url: str) -> str:
