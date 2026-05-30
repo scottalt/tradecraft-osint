@@ -41,11 +41,7 @@ def _is_private_host(host: str, *, resolve_dns: bool = True) -> bool:
         ip = None
     if ip is not None:
         return (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
+            ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved
         )
 
     # 2. Well-known loopback names.

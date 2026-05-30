@@ -124,6 +124,7 @@ async def test_dns_resolved_private_host_is_blocked(
     to 169.254.169.254 (AWS metadata) which IS in a reserved range. The fetch
     must be blocked BEFORE the network call.
     """
+
     def fake_getaddrinfo(host: str, *args: Any, **kwargs: Any) -> list:
         if host == "metadata.evil.test":
             # AddrInfo tuple: (family, type, proto, canonname, sockaddr)
