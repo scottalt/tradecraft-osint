@@ -30,12 +30,14 @@ no error, masking the underlying problem.
   the false-negative guard for `developer.example.com`, `devops.example.com`,
   `testimonials.example.com`. (`src/tradecraft/collectors/footprint.py`)
 
-### Known limitations
+### Positioning
 
-- The `data` role still has near-zero question coverage. The `footprint`
-  signals (`missing_csp`, `missing_hsts`, `open_staging_subdomain`) are tagged
-  for cybersec/devops only. A real-world run with `--role data` still yields
-  an empty questions section. v0.2.0 will broaden the template library.
+tradecraft's primary persona is **cybersecurity interview prep** (offensive,
+defensive, AppSec, security leadership). Non-cybersec roles (swe, devops,
+data, eng-leadership) get progressively reduced template coverage by design
+for now — broader role coverage is a post-v0.2.0 concern. If you run
+`--role data` against the current release, expect a sparse questions
+section; that's expected, not a bug.
 
 ## [0.1.0-alpha] - 2026-05-24
 
