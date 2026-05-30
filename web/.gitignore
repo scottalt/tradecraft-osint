@@ -4,4 +4,5 @@ node_modules/
 out/
 *.tsbuildinfo
 .env*.local
-api/_vendor/
+api/_vendor/*
+!api/_vendor/.gitkeep
