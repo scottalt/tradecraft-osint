@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "bash scripts/vendor-tradecraft.sh && next build --turbopack",
+    "build": "next build --turbopack",
+    "vendor": "bash scripts/vendor-tradecraft.sh",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"

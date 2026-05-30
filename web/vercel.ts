@@ -1,7 +1,7 @@
 import { type VercelConfig } from "@vercel/config/v1";
 
 export const config: VercelConfig = {
-  buildCommand: "bash scripts/vendor-tradecraft.sh && npm run build",
+  buildCommand: "npm run build",
   framework: "nextjs",
   functions: {
     "api/compile.py": {
