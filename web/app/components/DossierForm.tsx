@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ClassifiedStamp } from "./ClassifiedStamp";
+import { DossierDisplay } from "./DossierDisplay";
 
 type FormState = "idle" | "running" | "done" | "error";
 
@@ -95,9 +96,7 @@ export function DossierForm() {
         <p className="mt-6 font-typewriter text-stamp-red text-sm">ERROR: {error}</p>
       )}
       {state === "done" && dossier !== null && (
-        <pre className="mt-10 border-t-2 border-rule pt-6 text-xs font-data overflow-auto max-h-[60vh] text-ink">
-          {JSON.stringify(dossier, null, 2)}
-        </pre>
+        <DossierDisplay dossier={dossier as never} />
       )}
     </section>
   );
