@@ -10,14 +10,19 @@ All notable changes to this project will be documented here. Follows
 
 ### Added
 
-- **Hosted preview at https://tradecraft-osint.vercel.app.** Next.js 16 +
-  Tailwind v4 frontend under `web/`. Single-page web app that submits a target
-  to the `safe_for_hosted=True` collectors (`footprint`, `company`, `job`,
-  `github`) via a Vercel Python Function that vendors the `tradecraft` package
-  at build time. Dossier renders inline with a deliberately distinctive "Field
-  Dossier" visual style — manila paper, Special Elite typewriter type, JetBrains
-  Mono data tables, classification stamps. Explicitly NOT a generic shadcn
-  default UI.
+- **Live design preview at https://scottalt.github.io/tradecraft-osint/.**
+  Next.js 16 + Tailwind v4 static export deployed to GitHub Pages via
+  `.github/workflows/deploy-pages.yml`. The UI is fully interactive but
+  the form is inert (no backend on Pages); it exists to demonstrate the
+  distinctive "Field Dossier" visual style — manila paper, Special Elite
+  typewriter type, JetBrains Mono data tables, classification stamps.
+  Explicitly NOT a generic shadcn default UI.
+- **Full hosted version (one-click Vercel deploy)** under `web/`. The same
+  Next.js app plus two Vercel Python Functions: `/api/compile` runs the four
+  `safe_for_hosted=True` collectors (footprint, company, job, github);
+  `/api/ai` proxies BYOK AI. The vendored `tradecraft` package is committed
+  at `web/api/_vendor/tradecraft/` so the deploy works with no advanced
+  Vercel configuration. See `web/DEPLOY.md`.
 - **BYOK AI proxy at `/api/ai`.** Accepts a provider + key + prompt from the
   browser, calls the provider, returns the response. The key is forwarded once
   and never stored, logged, or written to disk. SSRF guards reject loopback,

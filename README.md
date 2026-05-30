@@ -10,11 +10,12 @@ Free public sources only. No paid APIs required. Optional AI analysis via your o
 
 ## Status
 
-**v1.1.0** — full CLI + hosted web preview. CLI: all 9 collectors + BYOK AI
-deep-dive layer (`--ai anthropic|openai|ollama|openai-compat`). Web: hosted
-demo at https://tradecraft-osint.vercel.app with the four `safe_for_hosted`
-collectors, BYOK AI proxied per request (key never stored), distinctive
-"Field Dossier" visual style.
+**v1.1.0** — full CLI + hosted web. CLI: all 9 collectors + BYOK AI deep-dive
+layer (`--ai anthropic|openai|ollama|openai-compat`). Web: live design preview
+at https://scottalt.github.io/tradecraft-osint/ (static export, distinctive
+Field Dossier visual style); full backend version with `/api/compile` +
+BYOK AI proxy deployable to Vercel in one click — see
+[`web/DEPLOY.md`](web/DEPLOY.md).
 
 [![CI](https://github.com/scottalt/tradecraft-osint/actions/workflows/ci.yml/badge.svg)](https://github.com/scottalt/tradecraft-osint/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
@@ -53,10 +54,21 @@ tradecraft https://acme.com --ai anthropic
 
 ## Hosted preview
 
-Try tradecraft without installing anything at the hosted demo (URL filled in
-post-deploy). The hosted preview runs only `footprint`, `company`, `job`, and
-`github` collectors — by design. For the full collector roster and BYOK AI,
-install the CLI above.
+**Live design preview:** https://scottalt.github.io/tradecraft-osint/
+
+The GitHub Pages preview is a static export — the **Field Dossier** UI is live
+and interactive, but the Python collectors don't run there (no backend). It
+exists to demonstrate the distinctive aesthetic without anyone needing to
+install or deploy anything.
+
+For an actual hosted version that runs the four `safe_for_hosted=True`
+collectors (`footprint`, `company`, `job`, `github`), deploy `web/` to Vercel
+— [`web/DEPLOY.md`](web/DEPLOY.md) has a one-click Deploy Button URL and
+GitHub Actions auto-deploy instructions. The Vercel deploy unlocks
+`/api/compile` and the BYOK AI proxy `/api/ai`.
+
+For the full collector roster (news, breaches, m&a, people, business) plus
+BYOK AI on your machine, install the CLI above.
 
 Source for the web app is in [`web/`](web/).
 
