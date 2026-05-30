@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AiKeyDialog } from "./AiKeyDialog";
 import { ClassifiedStamp } from "./ClassifiedStamp";
 import { DossierDisplay } from "./DossierDisplay";
 
@@ -13,6 +14,34 @@ export function DossierForm() {
   const [state, setState] = useState<FormState>("idle");
   const [dossier, setDossier] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiQuestions, setAiQuestions] = useState<string[]>([]);
+
+  async function runAi(provider: "anthropic" | "openai", key: string, model: string) {
+    if (!dossier) return;
+    const system =
+      "You are helping a cybersecurity candidate prep for an interview. The user " +
+      "will provide structured OSINT findings. Generate 3-7 NEW interview questions " +
+      "as a numbered list. Return ONLY the list.";
+    const prompt =
+      "## Findings\n\n```json\n" +
+      JSON.stringify(dossier, null, 2) +
+      "\n```\n\n## Task\n\nGenerate 3-7 NEW questions as a numbered list.";
+    const res = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, key, model, system, prompt }),
+    });
+    const data = await res.json();
+    if (data.text) {
+      const lines = (data.text as string)
+        .split("\n")
+        .map((l) => l.match(/^\s*\d+[.):]\s*(.+)/))
+        .filter((m): m is RegExpMatchArray => !!m)
+        .map((m) => m[1].trim());
+      setAiQuestions(lines);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,7 +125,36 @@ export function DossierForm() {
         <p className="mt-6 font-typewriter text-stamp-red text-sm">ERROR: {error}</p>
       )}
       {state === "done" && dossier !== null && (
-        <DossierDisplay dossier={dossier as never} />
+        <>
+          <DossierDisplay dossier={dossier as never} />
+          <div className="mt-8 flex gap-4 items-center border-t-2 border-rule pt-6">
+            <button
+              type="button"
+              onClick={() => setAiOpen(true)}
+              className="font-typewriter uppercase tracking-widest text-sm px-6 py-2 border-2 border-ink text-ink"
+            >
+              Deep dive with AI (BYOK)
+            </button>
+            <span className="font-prose text-xs text-faded-ink italic">
+              Your key never leaves this request.
+            </span>
+          </div>
+          {aiQuestions.length > 0 && (
+            <section className="mt-10">
+              <p className="font-typewriter text-xs tracking-widest text-stamp-red mb-3">
+                DEEP DIVE — AI
+              </p>
+              <ol className="space-y-4 font-prose list-decimal pl-6">
+                {aiQuestions.map((q, i) => (
+                  <li key={i} className="text-ink">
+                    {q}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+          <AiKeyDialog open={aiOpen} onClose={() => setAiOpen(false)} onSubmit={runAi} />
+        </>
       )}
     </section>
   );
