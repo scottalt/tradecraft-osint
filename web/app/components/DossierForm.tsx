@@ -53,9 +53,11 @@ export function DossierForm() {
     e.preventDefault();
     if (demoMode) {
       setError(
-        "Design preview only — no backend on this host. " +
-          "Install the CLI (pipx install tradecraft) for real reconnaissance, " +
-          "or see DEPLOY.md to deploy the full hosted version with the Python functions to Vercel.",
+        "This page is the design preview — no Python backend is running here. " +
+          "To actually run a dossier you have two options. " +
+          "(1) Local CLI: pipx install git+https://github.com/scottalt/tradecraft-osint.git, then run tradecraft <url>. " +
+          "(2) One-click hosted: deploy the same web app + Python functions to Vercel using the Deploy Button at " +
+          "https://github.com/scottalt/tradecraft-osint/blob/main/web/DEPLOY.md — about 60 seconds.",
       );
       setState("error");
       return;

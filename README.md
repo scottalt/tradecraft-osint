@@ -23,15 +23,20 @@ BYOK AI proxy deployable to Vercel in one click — see
 
 ## Install
 
+Not yet on PyPI — install directly from GitHub:
+
 ```bash
 # Core CLI (heuristic questions only)
-pipx install tradecraft
+pipx install git+https://github.com/scottalt/tradecraft-osint.git
 
 # Plus BYOK AI providers (Anthropic, OpenAI, OpenAI-compatible)
-pipx install 'tradecraft[ai]'
+pipx install 'tradecraft[ai] @ git+https://github.com/scottalt/tradecraft-osint.git'
 
 # Ollama works out of the box with the core install — no extra package needed.
 ```
+
+Once published to PyPI (planned), `pipx install tradecraft` will be the canonical
+install command.
 
 ### AI providers (BYOK)
 
