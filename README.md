@@ -14,8 +14,7 @@ Free public sources only. No paid APIs required. Optional AI analysis via your o
 layer (`--ai anthropic|openai|ollama|openai-compat`). Web: live design preview
 at https://scottalt.github.io/tradecraft-osint/ (static export, distinctive
 Field Dossier visual style); full backend version with `/api/compile` +
-BYOK AI proxy deployable to Vercel in one click — see
-[`web/DEPLOY.md`](web/DEPLOY.md).
+BYOK AI proxy **live at https://tradecraft-osint.vercel.app/**.
 
 [![CI](https://github.com/scottalt/tradecraft-osint/actions/workflows/ci.yml/badge.svg)](https://github.com/scottalt/tradecraft-osint/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
@@ -57,23 +56,25 @@ export ANTHROPIC_API_KEY=...
 tradecraft https://acme.com --ai anthropic
 ```
 
-## Hosted preview
+## Hosted
 
-**Live design preview:** https://scottalt.github.io/tradecraft-osint/
+**Live, fully functional:** https://tradecraft-osint.vercel.app/
 
-The GitHub Pages preview is a static export — the **Field Dossier** UI is live
-and interactive, but the Python collectors don't run there (no backend). It
-exists to demonstrate the distinctive aesthetic without anyone needing to
-install or deploy anything.
+The Vercel deployment runs the four `safe_for_hosted=True` collectors
+(`footprint`, `company`, `job`, `github`) via Python Functions at
+`/api/compile`, plus a BYOK AI proxy at `/api/ai` (key forwarded once,
+never stored). Submit a target in the Field Dossier form and get a real
+dossier rendered inline.
 
-For an actual hosted version that runs the four `safe_for_hosted=True`
-collectors (`footprint`, `company`, `job`, `github`), deploy `web/` to Vercel
-— [`web/DEPLOY.md`](web/DEPLOY.md) has a one-click Deploy Button URL and
-GitHub Actions auto-deploy instructions. The Vercel deploy unlocks
-`/api/compile` and the BYOK AI proxy `/api/ai`.
+**Design preview (static, no backend):** https://scottalt.github.io/tradecraft-osint/
+
+The GitHub Pages mirror exists to show the design without anyone needing to
+deploy. The form is inert there — points users at the CLI or the Vercel URL
+above for actual reconnaissance.
 
 For the full collector roster (news, breaches, m&a, people, business) plus
-BYOK AI on your machine, install the CLI above.
+BYOK AI on your machine, install the CLI above. The hosted version is
+deliberately narrow — see `docs/ETHICS.md`.
 
 Source for the web app is in [`web/`](web/).
 
