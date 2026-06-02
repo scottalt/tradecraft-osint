@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -11,7 +13,13 @@ import respx
 
 from tradecraft.cache import Cache
 from tradecraft.collectors.base import CollectorContext
-from tradecraft.collectors.news import NewsCollector
+from tradecraft.collectors.news import (
+    NEWS_MAX_AGE_DAYS,
+    NewsCollector,
+    _apply_recency_filter,
+    _apply_relevance_filter,
+    _parse_date_iso,
+)
 from tradecraft.config import HttpConfig
 from tradecraft.http import HttpClient
 from tradecraft.models import Role, Signal, Target
@@ -79,3 +87,380 @@ async def test_empty_feeds_no_signals(http) -> None:
         Signal.RECENT_LEADERSHIP_CHANGE,
     ):
         assert s not in result.signals
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for _parse_date_iso
+# ---------------------------------------------------------------------------
+
+
+def test_parse_date_iso_google_news_struct_time() -> None:
+    """RSS items with a valid published_parsed time.struct_time parse to ISO date."""
+    # struct_time for 2026-03-15
+    st = time.struct_time((2026, 3, 15, 10, 0, 0, 0, 0, 0))
+    item = {"source": "google_news", "published_parsed": st, "published": ""}
+    assert _parse_date_iso(item) == "2026-03-15"
+
+
+def test_parse_date_iso_google_news_missing_struct_time() -> None:
+    """RSS items without published_parsed return None."""
+    item = {"source": "google_news", "published_parsed": None, "published": ""}
+    assert _parse_date_iso(item) is None
+
+
+def test_parse_date_iso_hn_iso_string() -> None:
+    """HN items with ISO 8601 created_at parse to YYYY-MM-DD date portion."""
+    item = {"source": "hn", "published": "2026-03-11T12:00:00.000Z"}
+    assert _parse_date_iso(item) == "2026-03-11"
+
+
+def test_parse_date_iso_hn_missing() -> None:
+    """HN items without created_at return None."""
+    item = {"source": "hn", "published": ""}
+    assert _parse_date_iso(item) is None
+
+
+def test_parse_date_iso_unknown_source() -> None:
+    """Items from unknown source return None."""
+    item = {"source": "unknown", "published": "2026-03-11T12:00:00Z"}
+    assert _parse_date_iso(item) is None
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for _apply_recency_filter
+# ---------------------------------------------------------------------------
+
+
+def _make_item(title: str, date_iso: str | None, source: str = "hn") -> dict:
+    return {"title": title, "url": "", "source": source, "date_iso": date_iso}
+
+
+def test_recency_filter_keeps_recent_item() -> None:
+    today = datetime.now(tz=UTC)
+    recent_date = (today - timedelta(days=30)).strftime("%Y-%m-%d")
+    items = [_make_item("Recent headline", recent_date)]
+    result = _apply_recency_filter(items, today)
+    assert len(result) == 1
+
+
+def test_recency_filter_drops_stale_item() -> None:
+    today = datetime.now(tz=UTC)
+    stale_date = (today - timedelta(days=NEWS_MAX_AGE_DAYS + 10)).strftime("%Y-%m-%d")
+    items = [_make_item("Old headline", stale_date)]
+    result = _apply_recency_filter(items, today)
+    assert len(result) == 0
+
+
+def test_recency_filter_keeps_undated_item() -> None:
+    """Items with no parseable date are kept (fail-open)."""
+    today = datetime.now(tz=UTC)
+    items = [_make_item("No date headline", None)]
+    result = _apply_recency_filter(items, today)
+    assert len(result) == 1
+
+
+def test_recency_filter_boundary_one_day_inside() -> None:
+    """An item one day inside the cutoff window (364 days ago) is kept."""
+    today = datetime.now(tz=UTC)
+    inside_date = (today - timedelta(days=NEWS_MAX_AGE_DAYS - 1)).strftime("%Y-%m-%d")
+    items = [_make_item("Near-boundary headline", inside_date)]
+    result = _apply_recency_filter(items, today)
+    assert len(result) == 1
+
+
+def test_recency_filter_mixed_items() -> None:
+    today = datetime.now(tz=UTC)
+    recent = (today - timedelta(days=10)).strftime("%Y-%m-%d")
+    stale = (today - timedelta(days=400)).strftime("%Y-%m-%d")
+    items = [
+        _make_item("Recent", recent),
+        _make_item("Stale", stale),
+        _make_item("Undated", None),
+    ]
+    result = _apply_recency_filter(items, today)
+    assert len(result) == 2
+    titles = [i["title"] for i in result]
+    assert "Recent" in titles
+    assert "Undated" in titles
+    assert "Stale" not in titles
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for _apply_relevance_filter
+# ---------------------------------------------------------------------------
+
+
+def test_relevance_filter_keeps_matching_title() -> None:
+    items = [_make_item("Acme Corp raises funding", None)]
+    result = _apply_relevance_filter(items, "Acme Corp")
+    assert len(result) == 1
+
+
+def test_relevance_filter_drops_namesake_title() -> None:
+    """Title with no company token is dropped."""
+    items = [_make_item("Totally unrelated news story", None)]
+    result = _apply_relevance_filter(items, "Acme Corp")
+    assert len(result) == 0
+
+
+def test_relevance_filter_case_insensitive() -> None:
+    items = [_make_item("ACME CORP announces layoffs", None)]
+    result = _apply_relevance_filter(items, "Acme Corp")
+    assert len(result) == 1
+
+
+def test_relevance_filter_ignores_short_tokens() -> None:
+    """Tokens shorter than 3 chars are skipped; only longer tokens must match."""
+    # "Co" is length 2 — skipped. "AB" is length 2 — skipped. "Inc" is length 3 — kept.
+    items = [
+        _make_item("Inc raises a seed round", None),
+        _make_item("No match here at all", None),
+    ]
+    result = _apply_relevance_filter(items, "AB Co Inc")
+    # Only "Inc" is a usable token (len >= 3)
+    assert len(result) == 1
+    assert result[0]["title"] == "Inc raises a seed round"
+
+
+def test_relevance_filter_no_usable_tokens_keeps_all() -> None:
+    """Company name with all short tokens (< 3) means no filtering — keep everything."""
+    items = [_make_item("Completely irrelevant", None), _make_item("Also irrelevant", None)]
+    result = _apply_relevance_filter(items, "AB Co")
+    assert len(result) == 2
+
+
+# ---------------------------------------------------------------------------
+# Integration-style tests: Evidence attachment via NewsCollector.run
+# ---------------------------------------------------------------------------
+
+
+def _make_rss_xml(items: list[dict]) -> str:
+    """Build a minimal RSS XML string from a list of {title, link, pubDate} dicts."""
+    entries = ""
+    for item in items:
+        entries += f"""
+    <item>
+      <title>{item["title"]}</title>
+      <link>{item.get("link", "")}</link>
+      <pubDate>{item.get("pubDate", "")}</pubDate>
+    </item>"""
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Test</title>
+    {entries}
+  </channel>
+</rss>"""
+
+
+def _make_hn_json(hits: list[dict]) -> dict:
+    return {"hits": hits}
+
+
+@respx.mock
+async def test_evidence_attached_for_fired_signal(http) -> None:
+    """A fired signal gets an Evidence whose summary matches the headline."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent = (today - timedelta(days=20)).strftime("%a, %d %b %Y 00:00:00 GMT")
+
+    rss = _make_rss_xml(
+        [
+            {
+                "title": "Acme Corp raises $100M Series B",
+                "link": "https://ex.test/a",
+                "pubDate": recent,
+            }
+        ]
+    )
+    respx.get("https://news.google.com/rss/search").mock(return_value=httpx.Response(200, text=rss))
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(200, json={"hits": []})
+    )
+    target = Target(company_name="Acme Corp", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_FUNDING in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_FUNDING), None)
+    assert ev is not None
+    assert ev.summary == "Acme Corp raises $100M Series B"
+    assert ev.url == "https://ex.test/a"
+    assert ev.source == "news.google"
+    assert ev.date is not None  # parsed from pubDate
+
+
+@respx.mock
+async def test_evidence_source_hn(http) -> None:
+    """Evidence from HN items has source == 'hn'."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent_iso = (today - timedelta(days=5)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme confirms data breach affecting customers",
+                        "url": "https://hn.test/acme-breach",
+                        "created_at": recent_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_SECURITY_INCIDENT in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_SECURITY_INCIDENT), None)
+    assert ev is not None
+    assert ev.source == "hn"
+    assert ev.summary == "Acme confirms data breach affecting customers"
+
+
+@respx.mock
+async def test_evidence_most_recent_item_wins(http) -> None:
+    """When multiple items match a signal, the most recent one becomes Evidence."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    older_iso = (today - timedelta(days=60)).strftime("%Y-%m-%dT00:00:00Z")
+    newer_iso = (today - timedelta(days=5)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme announces layoffs affecting 5% of workforce",
+                        "url": "https://hn.test/old-layoffs",
+                        "created_at": older_iso,
+                    },
+                    {
+                        "title": "Acme second round of layoffs hits engineering",
+                        "url": "https://hn.test/new-layoffs",
+                        "created_at": newer_iso,
+                    },
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_LAYOFFS in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_LAYOFFS), None)
+    assert ev is not None
+    assert ev.url == "https://hn.test/new-layoffs"
+    assert ev.summary == "Acme second round of layoffs hits engineering"
+
+
+@respx.mock
+async def test_signal_does_not_fire_when_only_stale_match(http) -> None:
+    """A signal does NOT fire (and no evidence) when the only matching item is stale."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    stale_iso = (today - timedelta(days=NEWS_MAX_AGE_DAYS + 30)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme raises Series A funding round",
+                        "url": "https://hn.test/old-funding",
+                        "created_at": stale_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_FUNDING not in result.signals
+    assert not any(e.signal == Signal.RECENT_FUNDING for e in result.evidence)
+
+
+@respx.mock
+async def test_signal_does_not_fire_when_only_irrelevant_match(http) -> None:
+    """A signal does NOT fire when the only matching item is filtered by relevance."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent_iso = (today - timedelta(days=5)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        # No mention of "Acme" — should be filtered by relevance
+                        "title": "Startup raises $50M Series B funding round",
+                        "url": "https://hn.test/unrelated-funding",
+                        "created_at": recent_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme Corp", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_FUNDING not in result.signals
+    assert not any(e.signal == Signal.RECENT_FUNDING for e in result.evidence)
+
+
+@respx.mock
+async def test_evidence_iso_date_correct(http) -> None:
+    """Evidence date field is correct ISO YYYY-MM-DD for both sources."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    hn_date = (today - timedelta(days=15)).strftime("%Y-%m-%d")
+    hn_iso = f"{hn_date}T08:30:00.000Z"
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme appoints new CEO from Google",
+                        "url": "https://hn.test/acme-ceo",
+                        "created_at": hn_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_LEADERSHIP_CHANGE in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_LEADERSHIP_CHANGE), None)
+    assert ev is not None
+    assert ev.date == hn_date
