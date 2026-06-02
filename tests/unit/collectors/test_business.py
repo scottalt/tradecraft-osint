@@ -196,6 +196,81 @@ async def test_lead_paragraph_preserves_spaces_between_inline_elements(http) -> 
 
 
 @respx.mock
+async def test_style_blocks_stripped_from_infobox_industry(http) -> None:
+    """Infobox <td> with an embedded <style> block must not leak CSS into industry."""
+    client, cache = http
+    respx.get("https://www.sec.gov/files/company_tickers.json").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    wiki = (
+        "<!doctype html><html><body>"
+        "<table class='infobox'><tr>"
+        "<th>Industry</th>"
+        "<td>"
+        "<style>.mw-parser-output .plainlist ol,.mw-parser-output .plainlist ul"
+        "{line-height:inherit;margin:0;padding:0}"
+        ".mw-parser-output .plainlist ol li,.mw-parser-output .plainlist ul li"
+        "{margin-bottom:0}</style>"
+        "Financial services Payment processor"
+        "</td>"
+        "</tr></table>"
+        "<p>Acme Corporation is a financial services and payment processing company "
+        "headquartered in San Francisco that serves millions of businesses worldwide.</p>"
+        "</body></html>"
+    )
+    respx.get("https://en.wikipedia.org/wiki/Acme_Corporation").mock(
+        return_value=httpx.Response(200, text=wiki)
+    )
+    target = Target(company_name="Acme Corporation", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await BusinessCollector().run(ctx)
+
+    assert Signal.INDUSTRY_IDENTIFIED in result.signals
+    industry = result.data["industry"]
+    assert "Financial services" in industry
+    assert "mw-parser-output" not in industry
+    assert "line-height" not in industry
+    assert "{" not in industry
+
+    industry_ev = next(e for e in result.evidence if e.signal == Signal.INDUSTRY_IDENTIFIED)
+    assert "Financial services" in industry_ev.summary
+    assert "mw-parser-output" not in industry_ev.summary
+    assert "line-height" not in industry_ev.summary
+    assert "{" not in industry_ev.summary
+
+
+@respx.mock
+async def test_style_blocks_stripped_from_lead_paragraph(http) -> None:
+    """Lead <p> with an embedded <style> block must not leak CSS into description."""
+    client, cache = http
+    respx.get("https://www.sec.gov/files/company_tickers.json").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    wiki = (
+        "<!doctype html><html><body><div class='mw-parser-output'>"
+        "<p>"
+        "<style>.mw-parser-output .hatnote{font-style:italic;line-height:1.5em}</style>"
+        "Acme Corporation is a privately held security software company "
+        "headquartered in San Francisco building cloud tooling for enterprises."
+        "</p>"
+        "</div></body></html>"
+    )
+    respx.get("https://en.wikipedia.org/wiki/Acme_Corporation").mock(
+        return_value=httpx.Response(200, text=wiki)
+    )
+    target = Target(company_name="Acme Corporation", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await BusinessCollector().run(ctx)
+
+    assert Signal.BUSINESS_DESCRIPTION in result.signals
+    desc_ev = next(e for e in result.evidence if e.signal == Signal.BUSINESS_DESCRIPTION)
+    assert "security software company" in desc_ev.summary
+    assert "mw-parser-output" not in desc_ev.summary
+    assert "line-height" not in desc_ev.summary
+    assert "{" not in desc_ev.summary
+
+
+@respx.mock
 async def test_no_match(http) -> None:
     client, cache = http
     respx.get("https://www.sec.gov/files/company_tickers.json").mock(

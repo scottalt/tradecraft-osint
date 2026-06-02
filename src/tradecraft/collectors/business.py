@@ -165,7 +165,14 @@ class BusinessCollector:
         separator, producing glued words like ``cloudcybersecurity`` or
         ``inSan Francisco`` that break ``\\bword\\b`` keyword matching. Using a
         space separator and collapsing whitespace runs keeps words standalone.
+
+        Wikipedia infobox cells and lead paragraphs sometimes contain embedded
+        ``<style>`` or ``<script>`` blocks whose raw CSS/JS text would otherwise
+        be included in the extracted string.  We decompose those descendant nodes
+        before calling ``.text()`` so their content is never returned.
         """
+        for junk in node.css("style, script"):
+            junk.decompose()
         return re.sub(r"\s+", " ", node.text(separator=" ", strip=True)).strip()
 
     @staticmethod
