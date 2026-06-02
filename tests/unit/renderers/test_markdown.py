@@ -215,6 +215,29 @@ def test_renders_business_section_when_present() -> None:
     assert "Security software" in md
 
 
+def test_renders_business_industry_and_description() -> None:
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    findings = Findings(
+        target=target,
+        results=[
+            CollectorResult(
+                name="business",
+                data={
+                    "industry": "Security software",
+                    "description": "Acme is a security software company in San Francisco.",
+                },
+                signals=[Signal.INDUSTRY_IDENTIFIED, Signal.BUSINESS_DESCRIPTION],
+                errors=[],
+                duration_ms=50,
+            )
+        ],
+    )
+    md = render_markdown(findings, [])
+    assert "## Business & financial signals" in md
+    assert "- **Industry:** Security software" in md
+    assert "> Acme is a security software company in San Francisco." in md
+
+
 def test_ai_questions_render_in_deep_dive_section() -> None:
     target = Target(company_name="Acme", root_url="https://acme.com")
     findings = Findings(target=target, results=[])

@@ -69,6 +69,7 @@ class CompanyCollector:
             pages.append(
                 {
                     "path": path.strip("/") or "home",
+                    "url": root_url if path == "" else f"{base}{path}",
                     "title": title_el.text(strip=True) if title_el else "",
                     "description": str(description_el.attributes.get("content", ""))
                     if description_el
@@ -79,27 +80,24 @@ class CompanyCollector:
             )
 
         # BUSINESS_DESCRIPTION: prefer the homepage meta description, falling
-        # back to the first about-page description. Emit at most once.
-        home_desc = next(
-            (p["description"] for p in pages if p["path"] == "home" and p["description"].strip()),
-            "",
+        # back to the first about-page description. Emit at most once, and cite
+        # the page the description actually came from.
+        home_page = next(
+            (p for p in pages if p["path"] == "home" and p["description"].strip()),
+            None,
         )
-        about_desc = next(
-            (
-                p["description"]
-                for p in pages
-                if p["path"].startswith("about") and p["description"].strip()
-            ),
-            "",
+        about_page = next(
+            (p for p in pages if p["path"].startswith("about") and p["description"].strip()),
+            None,
         )
-        business_desc = home_desc or about_desc
-        if business_desc:
+        source_page = home_page or about_page
+        if source_page is not None:
             signals.append(Signal.BUSINESS_DESCRIPTION)
             evidence.append(
                 Evidence(
                     signal=Signal.BUSINESS_DESCRIPTION,
-                    summary=business_desc[:400],
-                    url=root_url,
+                    summary=source_page["description"][:400],
+                    url=source_page["url"],
                     date=None,
                     source="company",
                 )

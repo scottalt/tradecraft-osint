@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import Awaitable
 from typing import Any, ClassVar
 
-from selectolax.parser import HTMLParser
+from selectolax.parser import HTMLParser, Node
 
 from tradecraft.collectors.base import CollectorContext
 from tradecraft.models import (
@@ -123,23 +123,49 @@ class BusinessCollector:
                     )
                 )
 
-        # Lead paragraph: first real-prose <p> (skip empties/hatnotes).
-        for p in tree.css("p"):
+        # Lead paragraph: first real-prose <p> outside any table/infobox.
+        lead = BusinessCollector._first_lead_paragraph(tree)
+        if lead:
+            description = lead[:400]
+            data["description"] = description
+            signals.append(Signal.BUSINESS_DESCRIPTION)
+            evidence.append(
+                Evidence(
+                    signal=Signal.BUSINESS_DESCRIPTION,
+                    summary=description,
+                    url=wiki_url,
+                    date=None,
+                    source="wikipedia",
+                )
+            )
+
+    @staticmethod
+    def _first_lead_paragraph(tree: HTMLParser) -> str | None:
+        """First real-prose <p> (>60 chars) that is not inside a table/infobox.
+
+        Prefers Wikipedia's ``.mw-parser-output`` content container so infobox
+        <p> cells (Products/Services etc.) cannot masquerade as the lead.
+        """
+        container = tree.css_first(".mw-parser-output")
+        candidates = container.css("p") if container else tree.css("p")
+        for p in candidates:
+            if BusinessCollector._has_table_ancestor(p):
+                continue
             text = p.text(strip=True)
             if len(text) > 60:
-                description = text[:400]
-                data["description"] = description
-                signals.append(Signal.BUSINESS_DESCRIPTION)
-                evidence.append(
-                    Evidence(
-                        signal=Signal.BUSINESS_DESCRIPTION,
-                        summary=description,
-                        url=wiki_url,
-                        date=None,
-                        source="wikipedia",
-                    )
-                )
-                break
+                return text
+        return None
+
+    @staticmethod
+    def _has_table_ancestor(node: Node, max_depth: int = 8) -> bool:
+        parent = node.parent
+        depth = 0
+        while parent is not None and depth < max_depth:
+            if parent.tag == "table":
+                return True
+            parent = parent.parent
+            depth += 1
+        return False
 
     @staticmethod
     async def _safe(

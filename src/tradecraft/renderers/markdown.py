@@ -204,17 +204,27 @@ def _breaches_section(findings: Findings) -> str:
 def _business_section(findings: Findings) -> str:
     result = findings.collector("business")
     lines = ["## Business & financial signals", ""]
-    if result is None or (not result.data.get("ticker") and not result.data.get("wikipedia")):
+    if result is None or not (
+        result.data.get("ticker")
+        or result.data.get("wikipedia")
+        or result.data.get("industry")
+        or result.data.get("description")
+    ):
         lines.append("_No business signals collected._")
         lines.append("")
         return "\n".join(lines)
     if result.data.get("ticker"):
         lines.append(f"- **Public company:** ticker `{result.data['ticker']!s}`")
+    if result.data.get("industry"):
+        lines.append(f"- **Industry:** {result.data['industry']!s}")
     wiki = cast(dict[str, object], result.data.get("wikipedia") or {})
     if wiki:
         for key in ("Founded", "Headquarters", "Industry", "Employees", "Revenue"):
             if key in wiki:
                 lines.append(f"- **{key}:** {wiki[key]!s}")
+    if result.data.get("description"):
+        lines.append("")
+        lines.append(f"> {result.data['description']!s}")
     lines.append("")
     return "\n".join(lines)
 
