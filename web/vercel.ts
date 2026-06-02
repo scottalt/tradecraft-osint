@@ -11,7 +11,7 @@ export const config: VercelConfig = {
   functions: {
     "api/compile.py": {
       memory: 1024,
-      maxDuration: 60,
+      maxDuration: 90,
     },
     "api/ai.py": {
       memory: 512,

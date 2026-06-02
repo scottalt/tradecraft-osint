@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import ClassVar
 
@@ -109,3 +110,40 @@ async def test_one_broken_collector_does_not_kill_run(http) -> None:
     broken_result = findings.collector("broken")
     assert broken_result is not None
     assert broken_result.errors
+
+
+class Slow(Collector):
+    name: ClassVar[str] = "slow"
+    requires_network: ClassVar[bool] = False
+    safe_for_hosted: ClassVar[bool] = True
+    role_relevance: ClassVar[set[Role]] = {Role.GENERIC}
+
+    async def run(self, _ctx: CollectorContext) -> CollectorResult:
+        await asyncio.sleep(5)
+        return CollectorResult(
+            name=self.name, data={"done": True}, signals=[], errors=[], duration_ms=0
+        )
+
+
+async def test_collector_timeout_bounds_slow_collector(http) -> None:
+    client, cache = http
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    orch = Orchestrator(collectors=[Footprint(), Slow()], http=client, cache=cache)
+    findings = await orch.run(target, collector_timeout=0.2)
+    # Fast collector succeeds; slow one is cut off with a timeout error, not hung.
+    assert {r.name for r in findings.results} == {"footprint", "slow"}
+    fp = findings.collector("footprint")
+    assert fp is not None and not fp.errors
+    slow = findings.collector("slow")
+    assert slow is not None
+    assert slow.errors and slow.errors[0].exception_type == "TimeoutError"
+    assert not slow.data
+
+
+async def test_no_collector_timeout_runs_to_completion(http) -> None:
+    client, cache = http
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    orch = Orchestrator(collectors=[Footprint()], http=client, cache=cache)
+    findings = await orch.run(target)  # collector_timeout defaults to None
+    fp = findings.collector("footprint")
+    assert fp is not None and not fp.errors

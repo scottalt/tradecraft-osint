@@ -121,9 +121,19 @@ async def _run(payload: dict) -> str:
     cache = Cache(directory=Path("/tmp/tradecraft-cache"), default_ttl=60, enabled=False)
     target_host = urlparse(root_url).hostname
 
-    async with HttpClient(HttpConfig(), cache, target_host=target_host) as http:
+    # Hosted runs against a hard serverless deadline. Fail fast on slow upstreams
+    # (shorter timeout, fewer retries) and cap each collector's wall-clock time so
+    # one slow source (crt.sh, SEC) can't 504 the whole request — partial dossiers
+    # are fine. Concurrency is bumped so the collectors fan out rather than queue.
+    http_config = HttpConfig(
+        request_timeout_seconds=12.0,
+        max_retries=1,
+        global_concurrency=8,
+    )
+
+    async with HttpClient(http_config, cache, target_host=target_host) as http:
         orch = Orchestrator(HOSTED_COLLECTORS, http=http, cache=cache)
-        findings = await orch.run(target, hosted=True)
+        findings = await orch.run(target, hosted=True, collector_timeout=35.0)
 
     questions = generate_questions(findings)
     return render_json(findings, questions)
