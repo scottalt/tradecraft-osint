@@ -252,6 +252,13 @@ def _people_section(findings: Findings) -> str:
     return "\n".join(lines)
 
 
+_DENSITY_NOTE = (
+    "_Limited recent public material was found for this target. For richer, "
+    "news- and M&A-anchored questions, add a job listing URL or run the full "
+    "CLI (which includes news, breaches, and M&A collectors)._"
+)
+
+
 def _questions_section(questions: Sequence[Question]) -> str:
     lines = [
         "## Questions to ask",
@@ -270,6 +277,10 @@ def _questions_section(questions: Sequence[Question]) -> str:
 
     heuristic = [q for q in questions if q.source_collector != "ai"]
     ai = [q for q in questions if q.source_collector == "ai"]
+
+    if heuristic and not any(q.evidence for q in heuristic):
+        lines.append(_DENSITY_NOTE)
+        lines.append("")
 
     starred = [q for q in heuristic if q.is_starred]
     rest = [q for q in heuristic if not q.is_starred]
@@ -296,11 +307,17 @@ def _questions_section(questions: Sequence[Question]) -> str:
 
 def _format_question(q: Question) -> str:
     tags = " ".join(f"`{r.value}`" for r in sorted(q.role_tags))
-    evidence = (
-        f"`{q.evidence_signal.value}` from `{q.source_collector}`"
-        if q.evidence_signal is not None
-        else f"AI deep-dive (`{q.source_collector}`)"
-    )
+    if q.evidence is not None:
+        ev = q.evidence
+        label = ev.source
+        if ev.date:
+            label = f"{label} · {ev.date}"
+        source_part = f"[{label}]({ev.url})" if ev.url else label
+        evidence = f"_source:_ {source_part}"
+    elif q.evidence_signal is not None:
+        evidence = f"`{q.evidence_signal.value}` from `{q.source_collector}`"
+    else:
+        evidence = f"AI deep-dive (`{q.source_collector}`)"
     return (
         f"- **{q.text}**  \n"
         f"  _confidence:_ `{q.confidence}` · _evidence:_ {evidence} · _roles:_ {tags}"
