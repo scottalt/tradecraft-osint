@@ -100,7 +100,6 @@ _INDUSTRY_PROFILES: tuple[IndustryProfile, ...] = (
                 "marketplace",
                 "shopping",
                 "storefront",
-                "commerce",
                 "dtc",
                 "merchant",
             }
@@ -365,10 +364,11 @@ def _industry_questions(findings: Findings) -> list[Question]:
 
     # Industry/description text exists but no profile matched -> one generic fallback.
     # Prefer the INDUSTRY_IDENTIFIED summary, else the (longest) description.
-    if cite_ev.signal == Signal.INDUSTRY_IDENTIFIED:
+    if cite_ev.signal == Signal.INDUSTRY_IDENTIFIED or len(cite_ev.summary) <= 100:
         industry_or_desc_short = cite_ev.summary
     else:
-        industry_or_desc_short = cite_ev.summary[:100]
+        # Truncate on a word boundary so the question never cuts mid-word.
+        industry_or_desc_short = cite_ev.summary[:100].rsplit(" ", 1)[0] + "…"
 
     if is_cyber:
         q_text = (
