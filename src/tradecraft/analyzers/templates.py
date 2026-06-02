@@ -25,6 +25,7 @@ class QuestionTemplate:
     text: str
     confidence: Literal["high", "med", "low"]
     source: str
+    needs_evidence: bool = False
 
 
 _ALL_TECH_ROLES = frozenset(
@@ -41,7 +42,7 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "Your main site doesn't ship a Content-Security-Policy header. "
             "Is that a deliberate posture, or is the team working toward one?"
         ),
-        confidence="med",
+        confidence="low",
         source="footprint",
     ),
     QuestionTemplate(
@@ -52,7 +53,7 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "I noticed your apex doesn't return Strict-Transport-Security. "
             "How does the team think about transport hardening across subdomains?"
         ),
-        confidence="med",
+        confidence="low",
         source="footprint",
     ),
     QuestionTemplate(
@@ -63,7 +64,7 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "I saw pre-prod hostnames in public certificate transparency logs. "
             "Does the team have a stance on hiding or hardening pre-prod surface area?"
         ),
-        confidence="high",
+        confidence="low",
         source="footprint",
     ),
     QuestionTemplate(
@@ -74,7 +75,7 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "Your apex TLS certificate expires soon. Is rotation automated end-to-end, "
             "or is there a manual step in the rollout?"
         ),
-        confidence="med",
+        confidence="low",
         source="footprint",
     ),
     QuestionTemplate(
@@ -85,7 +86,7 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "robots.txt or sitemap.xml references admin paths. "
             "How does the team approach reducing the discoverable attack surface?"
         ),
-        confidence="med",
+        confidence="low",
         source="footprint",
     ),
     QuestionTemplate(
@@ -137,44 +138,48 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         signals=(Signal.RECENT_LAYOFFS,),
         roles=frozenset(_ALL_TECH_ROLES | {Role.GENERIC}),
         text=(
-            "I saw the recent layoffs in the news. "
+            "I saw '{summary}' (via {source}, {date}). "
             "How has the team's scope shifted, and what's the focus for the remaining quarter?"
         ),
         confidence="high",
         source="news",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="news.funding",
         signals=(Signal.RECENT_FUNDING,),
         roles=frozenset(_ALL_TECH_ROLES | {Role.GENERIC}),
         text=(
-            "Congrats on the recent funding round. "
+            "I saw '{summary}' (via {source}, {date}). "
             "Where is most of that capital going — hiring, infrastructure, or new product lines?"
         ),
         confidence="high",
         source="news",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="news.leadership_change",
         signals=(Signal.RECENT_LEADERSHIP_CHANGE,),
         roles=frozenset(_ALL_TECH_ROLES | {Role.GENERIC}),
         text=(
-            "The recent leadership change is interesting context. "
+            "I saw '{summary}' (via {source}, {date}). "
             "How has it shifted what the team is prioritizing?"
         ),
         confidence="med",
         source="news",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="news.security_incident",
         signals=(Signal.RECENT_SECURITY_INCIDENT,),
         roles=frozenset({Role.CYBERSECURITY, Role.DEVOPS, Role.ENG_LEADERSHIP}),
         text=(
-            "I read about the security incident earlier this year. "
-            "What's changed in the team's posture and process since?"
+            "I saw '{summary}' (via {source}, {date}). "
+            "What's changed in the team's detection posture and process since?"
         ),
         confidence="high",
         source="news",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="breaches.history",
@@ -192,11 +197,12 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         signals=(Signal.M_A_RECENT,),
         roles=frozenset(_ALL_TECH_ROLES | {Role.GENERIC}),
         text=(
-            "I saw the recent acquisition. "
+            "I saw '{summary}' (via {source}, {date}). "
             "How is the integration going — product, identity, security tooling, on-call?"
         ),
         confidence="high",
         source="ma",
+        needs_evidence=True,
     ),
     # ---- breaches (offensive + defensive + GRC) ----
     QuestionTemplate(
@@ -263,54 +269,61 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         signals=(Signal.RECENT_SECURITY_INCIDENT,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
         text=(
-            "I read about the security incident earlier this year. "
+            "I saw '{summary}' (via {source}, {date}). "
             "What changed in your detection coverage, IR runbooks, or SOC staffing model since?"
         ),
         confidence="high",
         source="news",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="news.security_incident.offensive",
         signals=(Signal.RECENT_SECURITY_INCIDENT,),
         roles=frozenset({Role.CYBERSECURITY}),
         text=(
-            "Post-incident, did you bring in external red-team or purple-team engagements "
-            "to validate the fix?"
+            "After '{summary}' (via {source}, {date}), did you bring in external "
+            "red-team or purple-team engagements to validate the fix?"
         ),
         confidence="med",
         source="news",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="news.security_incident.grc",
         signals=(Signal.RECENT_SECURITY_INCIDENT,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
         text=(
-            "How did the incident shape your compliance reporting and board-level audit cadence?"
+            "How did '{summary}' (via {source}, {date}) shape your compliance reporting "
+            "and board-level audit cadence?"
         ),
         confidence="med",
         source="news",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="news.layoffs.cyber_specific",
         signals=(Signal.RECENT_LAYOFFS,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
         text=(
-            "Security teams often see disproportionate cuts during layoffs. "
+            "On '{summary}' (via {source}, {date}) — security teams often see "
+            "disproportionate cuts during layoffs. "
             "Did the security org stay whole, and how has scope been re-prioritized?"
         ),
         confidence="med",
         source="news",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="news.funding.cyber_specific",
         signals=(Signal.RECENT_FUNDING,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
         text=(
-            "With the recent funding, where is the security org investing — "
+            "On '{summary}' (via {source}, {date}) — where is the security org investing — "
             "in-house tooling, headcount, or third-party platforms?"
         ),
         confidence="med",
         source="news",
+        needs_evidence=True,
     ),
     # ---- company (AppSec + GRC) ----
     QuestionTemplate(
@@ -376,12 +389,13 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         signals=(Signal.JOB_STACK_LISTED,),
         roles=frozenset({Role.CYBERSECURITY, Role.SWE, Role.DEVOPS}),
         text=(
-            "The JD lists {stack}. "
-            "Where does the security team focus when that stack is involved — "
+            "The job description emphasizes {summary}. "
+            "Where is the team feeling that stack strain most at scale — "
             "supply-chain controls, secrets management, or runtime observability?"
         ),
         confidence="med",
         source="job",
+        needs_evidence=True,
     ),
     # ---- people (defensive + AppSec) ----
     QuestionTemplate(
@@ -460,56 +474,63 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         signals=(Signal.M_A_RECENT,),
         roles=frozenset({Role.CYBERSECURITY}),
         text=(
-            "I saw the recent acquisition. "
-            "What does the external attack-surface picture look like once you fold in "
+            "After '{summary}' (via {source}, {date}), "
+            "what does the external attack-surface picture look like once you fold in "
             "their domains, SaaS contracts, and identity providers?"
         ),
         confidence="high",
         source="ma",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="ma.recent.appsec",
         signals=(Signal.M_A_RECENT,),
         roles=frozenset({Role.CYBERSECURITY, Role.SWE}),
         text=(
-            "Post-acquisition, how do you handle a new codebase with different "
-            "SDLC controls — gradual policy adoption, immediate gating, or buy-now-fix-later?"
+            "After '{summary}' (via {source}, {date}), how do you handle a new codebase "
+            "with different SDLC controls — gradual policy adoption, immediate gating, "
+            "or buy-now-fix-later?"
         ),
         confidence="high",
         source="ma",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="ma.recent.grc",
         signals=(Signal.M_A_RECENT,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
         text=(
-            "What's the security-integration timeline post-deal — "
-            "identity merge, framework alignment (SOC 2, ISO), incident-response unification?"
+            "After '{summary}' (via {source}, {date}), what's the security-integration "
+            "timeline post-deal — identity merge, framework alignment (SOC 2, ISO), "
+            "incident-response unification?"
         ),
         confidence="high",
         source="ma",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="ma.frequent_acquirer",
         signals=(Signal.M_A_FREQUENT_ACQUIRER,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
         text=(
-            "You acquire frequently. "
+            "{summary}. "
             "Is there a standing post-acquisition security playbook, or is each deal bespoke?"
         ),
         confidence="med",
         source="ma",
+        needs_evidence=True,
     ),
     QuestionTemplate(
         id="ma.subsidiary",
         signals=(Signal.SUBSIDIARY_OF,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
         text=(
-            "Your parent company owns the broader security program. "
-            "Where does this team's autonomy end — tooling choices, hiring, incident escalation?"
+            "{summary} — where does this team's security autonomy end: "
+            "tooling choices, hiring, incident escalation?"
         ),
         confidence="low",
         source="ma",
+        needs_evidence=True,
     ),
     # ---- additional offensive templates against existing footprint signals ----
     QuestionTemplate(
@@ -521,7 +542,7 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "In a recent external assessment, would that have shown up as a finding, "
             "and what's the team's appetite for CSP rollout pain?"
         ),
-        confidence="med",
+        confidence="low",
         source="footprint",
     ),
     QuestionTemplate(
@@ -533,7 +554,7 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "Does your attack-surface management program — internal or vendor-driven — "
             "audit the CT feed continuously?"
         ),
-        confidence="med",
+        confidence="low",
         source="footprint",
     ),
 )
