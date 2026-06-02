@@ -128,6 +128,37 @@ class TestEvidence:
         assert e.url == "https://techcrunch.com/acme-widgetco"
         assert e.date == "2026-03-11"
 
+    def test_date_accepts_valid_iso(self) -> None:
+        e = Evidence(
+            signal=Signal.RECENT_FUNDING,
+            summary="Valid date",
+            source="news.google",
+            date="2026-03-11",
+        )
+        assert e.date == "2026-03-11"
+
+    def test_date_rejects_natural_language(self) -> None:
+        with pytest.raises(ValidationError, match="YYYY-MM-DD"):
+            Evidence(
+                signal=Signal.RECENT_FUNDING,
+                summary="Bad date",
+                source="news.google",
+                date="March 2026",
+            )
+
+    def test_date_rejects_us_format(self) -> None:
+        with pytest.raises(ValidationError, match="YYYY-MM-DD"):
+            Evidence(
+                signal=Signal.RECENT_FUNDING,
+                summary="Bad date",
+                source="news.google",
+                date="11/03/2026",
+            )
+
+    def test_date_none_is_allowed(self) -> None:
+        e = Evidence(signal=Signal.RECENT_FUNDING, summary="No date", source="company")
+        assert e.date is None
+
 
 class TestCollectorResultEvidence:
     def test_default_evidence_is_empty_list(self) -> None:
@@ -260,3 +291,44 @@ class TestFindingsEvidenceFor:
         )
         f = Findings(target=self._target(), results=[r])
         assert f.evidence_for(Signal.RECENT_FUNDING) is e1
+
+    def test_tie_break_by_url_is_deterministic(self) -> None:
+        """Same date → url tie-break; result must not depend on insertion order."""
+        e_alpha = Evidence(
+            signal=Signal.RECENT_FUNDING,
+            summary="Alpha source",
+            source="news.google",
+            date="2026-03-11",
+            url="https://alpha.example.com/story",
+        )
+        e_zebra = Evidence(
+            signal=Signal.RECENT_FUNDING,
+            summary="Zebra source",
+            source="news.google",
+            date="2026-03-11",
+            url="https://zebra.example.com/story",
+        )
+        # e_zebra has the lexicographically greater url; it should win in both orderings
+        r_order1 = CollectorResult(
+            name="news",
+            data={},
+            signals=[],
+            errors=[],
+            duration_ms=5,
+            evidence=[e_alpha, e_zebra],
+        )
+        r_order2 = CollectorResult(
+            name="news",
+            data={},
+            signals=[],
+            errors=[],
+            duration_ms=5,
+            evidence=[e_zebra, e_alpha],
+        )
+        f1 = Findings(target=self._target(), results=[r_order1])
+        f2 = Findings(target=self._target(), results=[r_order2])
+        result1 = f1.evidence_for(Signal.RECENT_FUNDING)
+        result2 = f2.evidence_for(Signal.RECENT_FUNDING)
+        # Both must pick the zebra url (lexicographically greater)
+        assert result1 is not None and result1.url == "https://zebra.example.com/story"
+        assert result2 is not None and result2.url == "https://zebra.example.com/story"

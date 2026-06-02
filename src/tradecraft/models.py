@@ -6,7 +6,7 @@ import re
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 
 class Role(StrEnum):
@@ -58,6 +58,7 @@ class Signal(StrEnum):
 
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _slugify(value: str) -> str:
@@ -70,6 +71,13 @@ class Evidence(BaseModel):
     url: str | None = None
     date: str | None = None  # ISO date string when known, e.g. "2026-03-11"
     source: str  # e.g. "news.google", "hn", "company", "job", "wikipedia"
+
+    @field_validator("date")
+    @classmethod
+    def _validate_iso_date(cls, v: str | None) -> str | None:
+        if v is not None and not _ISO_DATE_RE.fullmatch(v):
+            raise ValueError(f"date must be YYYY-MM-DD, got {v!r}")
+        return v
 
 
 class Target(BaseModel):
@@ -128,5 +136,6 @@ class Findings(BaseModel):
             return None
         dated = [e for e in matches if e.date is not None]
         if dated:
-            return max(dated, key=lambda e: e.date)  # type: ignore[arg-type]
+            # most-recent-wins; url is the tie-break for determinism
+            return max(dated, key=lambda e: (e.date, e.url or ""))  # type: ignore[arg-type]
         return matches[0]
