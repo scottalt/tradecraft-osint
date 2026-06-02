@@ -46,18 +46,47 @@ def test_template_dataclass_fields() -> None:
 
 
 def test_library_has_expanded_for_v0_2() -> None:
-    """v0.2.0 ships ~45 templates (15 starter + ~30 new)."""
-    assert len(TEMPLATES) >= 40
+    """v0.2.0 grew the library substantially. Note: the generic security-header
+    footprint templates and the contextual placeholder templates were later
+    removed (footprint recon is no longer surfaced as interview questions;
+    industry / JD-stack questions moved to analyzers/contextual.py)."""
+    assert len(TEMPLATES) >= 30
+
+
+# Signals intentionally NOT turned into template questions.
+#
+# Footprint recon-only signals: these still surface in the dossier's footprint
+# recon section, but as security-config trivia they make poor interview questions,
+# so we do not generate template questions from them.
+#
+# Contextual signals: INDUSTRY_IDENTIFIED / BUSINESS_DESCRIPTION / JOB_STACK_LISTED
+# are handled by analyzers/contextual.py (industry + JD-tech questions), not by
+# the template library.
+_TEMPLATE_EXCLUDED_SIGNALS: frozenset[Signal] = frozenset(
+    {
+        # footprint recon-only
+        Signal.MISSING_CSP,
+        Signal.MISSING_HSTS,
+        Signal.OPEN_STAGING_SUBDOMAIN,
+        Signal.CERT_EXPIRING_SOON,
+        Signal.EXPOSED_ADMIN_PATH,
+        # handled by analyzers/contextual.py
+        Signal.INDUSTRY_IDENTIFIED,
+        Signal.BUSINESS_DESCRIPTION,
+        Signal.JOB_STACK_LISTED,
+    }
+)
 
 
 def test_every_cybersec_signal_has_at_least_one_template() -> None:
     """Every Signal value should be covered by at least one cybersecurity-tagged
-    template. Non-cyber roles are intentionally under-covered for now."""
+    template, except the intentionally excluded recon-only / contextual signals.
+    Non-cyber roles are intentionally under-covered for now."""
     cyber_signals_covered: set[Signal] = set()
     for tmpl in TEMPLATES:
         if Role.CYBERSECURITY in tmpl.roles:
             cyber_signals_covered.update(tmpl.signals)
-    missing = set(Signal) - cyber_signals_covered
+    missing = (set(Signal) - cyber_signals_covered) - _TEMPLATE_EXCLUDED_SIGNALS
     assert not missing, f"signals with no cybersec template: {sorted(s.value for s in missing)}"
 
 
@@ -103,7 +132,12 @@ def test_evidence_templates_use_only_safe_slots() -> None:
         assert slots <= allowed, f"{tmpl.id} uses unexpected slots: {slots - allowed}"
 
 
-def test_footprint_config_templates_demoted_to_low() -> None:
+def test_footprint_config_templates_removed() -> None:
+    """The generic security-header footprint templates and the contextual
+    placeholder templates were removed; footprint recon is no longer surfaced
+    as interview questions and industry/JD-stack questions live in
+    analyzers/contextual.py."""
+    ids = {t.id for t in TEMPLATES}
     for tid in (
         "footprint.missing_csp",
         "footprint.missing_hsts",
@@ -112,25 +146,24 @@ def test_footprint_config_templates_demoted_to_low() -> None:
         "footprint.exposed_admin",
         "footprint.missing_csp.offensive",
         "footprint.open_staging.grc",
+        "business.industry_identified",
+        "business.description",
+        "job.stack_listed",
     ):
-        assert _by_id(tid).confidence == "low", f"{tid} should be low confidence"
-
-
-def test_job_stack_listed_uses_summary_slot() -> None:
-    t = _by_id("job.stack_listed")
-    assert t.needs_evidence
-    assert "{summary}" in t.text
-    assert "{stack}" not in t.text
+        assert tid not in ids, f"{tid} should have been removed"
 
 
 def test_multiple_sub_disciplines_represented() -> None:
     """Templates should span offensive (attack-surface), defensive (incident
-    response), AppSec (CSP/HSTS posture), and GRC (compliance) framings.
+    response), AppSec (supply-chain / SDLC posture), and GRC (compliance) framings.
     Check by keyword presence in the template texts."""
     text_corpus = " ".join(t.text.lower() for t in TEMPLATES if Role.CYBERSECURITY in t.roles)
     assert "attack surface" in text_corpus or "exposure" in text_corpus  # offensive
     assert "detect" in text_corpus or "respond" in text_corpus or "soc" in text_corpus  # defensive
     assert (
-        "csp" in text_corpus or "content-security-policy" in text_corpus or "appsec" in text_corpus
+        "supply-chain" in text_corpus
+        or "supply chain" in text_corpus
+        or "sdlc" in text_corpus
+        or "dependency" in text_corpus
     )  # appsec
     assert "compliance" in text_corpus or "audit" in text_corpus or "soc 2" in text_corpus  # grc

@@ -39,10 +39,10 @@ def test_no_signals_yields_no_questions() -> None:
 
 
 def test_single_signal_fires_matching_template() -> None:
-    f = _findings_with([Signal.MISSING_CSP])
+    f = _findings_with([Signal.OSS_FORWARD_CULTURE])
     questions = generate_questions(f)
     assert questions
-    assert any("Content-Security-Policy" in q.text for q in questions)
+    assert any("public GitHub footprint" in q.text for q in questions)
 
 
 def test_role_filter_excludes_irrelevant_templates() -> None:
@@ -65,13 +65,20 @@ def test_data_role_still_gets_relevant_templates() -> None:
 
 
 def test_top_3_are_starred() -> None:
+    ev = Evidence(
+        signal=Signal.RECENT_FUNDING,
+        summary="Acme raises $40M Series B",
+        date="2026-04-01",
+        source="news.google",
+    )
     f = _findings_with(
         [
-            Signal.OPEN_STAGING_SUBDOMAIN,
-            Signal.MISSING_CSP,
-            Signal.MISSING_HSTS,
+            Signal.OSS_FORWARD_CULTURE,
+            Signal.STRONG_ENG_BRAND,
+            Signal.PRODUCT_LIST_EMPTY,
             Signal.RECENT_FUNDING,
-        ]
+        ],
+        evidence=[ev],
     )
     questions = generate_questions(f)
     starred = [q for q in questions if q.is_starred]
@@ -82,18 +89,18 @@ def test_top_3_are_starred() -> None:
 def test_no_duplicate_templates_when_multiple_signals_share_one_template() -> None:
     """Currently each template has a single signal in tuple; this test guards
     against a future tuple-of-signals template producing two Question objects."""
-    f = _findings_with([Signal.MISSING_CSP, Signal.MISSING_CSP])
+    f = _findings_with([Signal.OSS_FORWARD_CULTURE, Signal.OSS_FORWARD_CULTURE])
     questions = generate_questions(f)
-    csp_qs = [q for q in questions if "Content-Security-Policy" in q.text]
-    assert len(csp_qs) == 1
+    oss_qs = [q for q in questions if "public GitHub footprint" in q.text]
+    assert len(oss_qs) == 1
 
 
 def test_question_evidence_signal_matches_trigger() -> None:
-    f = _findings_with([Signal.MISSING_CSP])
+    f = _findings_with([Signal.OSS_FORWARD_CULTURE])
     questions = generate_questions(f)
-    assert questions, "expected at least one question for MISSING_CSP"
-    assert all(q.evidence_signal == Signal.MISSING_CSP for q in questions)
-    assert all(q.source_collector == "footprint" for q in questions)
+    assert questions, "expected at least one question for OSS_FORWARD_CULTURE"
+    assert all(q.evidence_signal == Signal.OSS_FORWARD_CULTURE for q in questions)
+    assert all(q.source_collector == "github" for q in questions)
 
 
 # ---- evidence-aware behavior ----
@@ -245,6 +252,66 @@ def test_ma_subsidiary_renders_summary_and_source_no_date() -> None:
     assert "Acme is a subsidiary of Globex" in text  # summary
     assert "Wikipedia" in text  # friendly source label for provenance
     assert "recently" not in text  # no misleading date fallback
+
+
+def test_integration_contextual_and_news_lead_no_header_questions() -> None:
+    """generate_questions surfaces evidence-backed contextual + news questions at
+    the top, and never emits removed security-header questions."""
+    target = Target(company_name="Acme", root_url="https://acme.com", role=Role.CYBERSECURITY)
+    business = CollectorResult(
+        name="business",
+        data={},
+        signals=[Signal.INDUSTRY_IDENTIFIED],
+        errors=[],
+        duration_ms=0,
+        evidence=[
+            Evidence(
+                signal=Signal.INDUSTRY_IDENTIFIED,
+                summary="Cloud computing, Content delivery network, Cybersecurity",
+                source="wikipedia",
+            )
+        ],
+    )
+    news = CollectorResult(
+        name="news",
+        data={},
+        signals=[Signal.RECENT_FUNDING],
+        errors=[],
+        duration_ms=0,
+        evidence=[
+            Evidence(
+                signal=Signal.RECENT_FUNDING,
+                summary="Acme raises $40M Series B",
+                date="2026-04-01",
+                source="news.google",
+            )
+        ],
+    )
+    # also include a footprint signal that should NOT produce a header question
+    footprint = CollectorResult(
+        name="footprint",
+        data={},
+        signals=[Signal.MISSING_CSP, Signal.MISSING_HSTS],
+        errors=[],
+        duration_ms=0,
+        evidence=[],
+    )
+    f = Findings(target=target, results=[business, news, footprint])
+    questions = generate_questions(f)
+
+    assert questions
+    # No removed security-header questions.
+    for q in questions:
+        assert "Content-Security-Policy" not in q.text
+        assert "Strict-Transport-Security" not in q.text
+    # Evidence-backed questions lead.
+    assert questions[0].evidence is not None
+    # Contextual industry + news both present.
+    assert any("infrastructure, cloud & security" in q.text for q in questions)
+    assert any("Series B" in q.text for q in questions)
+    # Dedupe: no duplicate text.
+    texts = [q.text for q in questions]
+    assert len(texts) == len(set(texts))
 
 
 def test_question_model_accepts_evidence() -> None:
