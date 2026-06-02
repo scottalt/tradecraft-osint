@@ -10,6 +10,7 @@ from tradecraft.collectors.base import CollectorContext
 from tradecraft.models import (
     CollectorError,
     CollectorResult,
+    Evidence,
     Role,
     Signal,
 )
@@ -21,7 +22,7 @@ _FREQUENT_ACQUIRER_THRESHOLD = 5
 class MaCollector:
     name: ClassVar[str] = "ma"
     requires_network: ClassVar[bool] = True
-    safe_for_hosted: ClassVar[bool] = False
+    safe_for_hosted: ClassVar[bool] = True
     role_relevance: ClassVar[set[Role]] = {
         Role.CYBERSECURITY,
         Role.SWE,
@@ -32,11 +33,13 @@ class MaCollector:
     async def run(self, ctx: CollectorContext) -> CollectorResult:
         errors: list[CollectorError] = []
         signals: list[Signal] = []
+        evidence: list[Evidence] = []
         wiki_slug = ctx.target.company_name.replace(" ", "_")
+        wiki_url = _WIKIPEDIA_URL.format(slug=wiki_slug)
         data: dict[str, Any] = {"parent": None, "subsidiaries": []}
 
         try:
-            resp = await ctx.http.get(_WIKIPEDIA_URL.format(slug=wiki_slug))
+            resp = await ctx.http.get(wiki_url)
         except Exception as exc:  # noqa: BLE001, RUF100
             errors.append(
                 CollectorError(
@@ -46,19 +49,34 @@ class MaCollector:
                 )
             )
             return CollectorResult(
-                name=self.name, data=data, signals=signals, errors=errors, duration_ms=0
+                name=self.name,
+                data=data,
+                signals=signals,
+                errors=errors,
+                evidence=[],
+                duration_ms=0,
             )
 
         if resp.status_code != 200:
             return CollectorResult(
-                name=self.name, data=data, signals=signals, errors=errors, duration_ms=0
+                name=self.name,
+                data=data,
+                signals=signals,
+                errors=errors,
+                evidence=[],
+                duration_ms=0,
             )
 
         tree = HTMLParser(resp.text)
         infobox = tree.css_first("table.infobox")
         if not infobox:
             return CollectorResult(
-                name=self.name, data=data, signals=signals, errors=errors, duration_ms=0
+                name=self.name,
+                data=data,
+                signals=signals,
+                errors=errors,
+                evidence=[],
+                duration_ms=0,
             )
 
         for row in infobox.css("tr"):
@@ -71,16 +89,35 @@ class MaCollector:
             if label == "parent" and value:
                 data["parent"] = value
                 signals.append(Signal.SUBSIDIARY_OF)
+                evidence.append(
+                    Evidence(
+                        signal=Signal.SUBSIDIARY_OF,
+                        summary=f"Subsidiary of {value}",
+                        url=wiki_url,
+                        date=None,
+                        source="wikipedia",
+                    )
+                )
             elif label == "subsidiaries" and value:
                 subs = [s.strip() for s in value.split(",") if s.strip()]
                 data["subsidiaries"] = subs
                 if len(subs) >= _FREQUENT_ACQUIRER_THRESHOLD:
                     signals.append(Signal.M_A_FREQUENT_ACQUIRER)
+                    evidence.append(
+                        Evidence(
+                            signal=Signal.M_A_FREQUENT_ACQUIRER,
+                            summary=f"Frequent acquirer ({len(subs)} subsidiaries)",
+                            url=wiki_url,
+                            date=None,
+                            source="wikipedia",
+                        )
+                    )
 
         return CollectorResult(
             name=self.name,
             data=data,
             signals=signals,
             errors=errors,
+            evidence=evidence,
             duration_ms=0,
         )

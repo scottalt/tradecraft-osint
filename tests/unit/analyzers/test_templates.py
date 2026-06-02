@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import string
+
 from tradecraft.analyzers.templates import (
     TEMPLATES,
     QuestionTemplate,
@@ -57,6 +59,68 @@ def test_every_cybersec_signal_has_at_least_one_template() -> None:
             cyber_signals_covered.update(tmpl.signals)
     missing = set(Signal) - cyber_signals_covered
     assert not missing, f"signals with no cybersec template: {sorted(s.value for s in missing)}"
+
+
+def _by_id(template_id: str) -> QuestionTemplate:
+    return next(t for t in TEMPLATES if t.id == template_id)
+
+
+def test_needs_evidence_field_defaults_false() -> None:
+    t = QuestionTemplate(
+        id="x",
+        signals=(Signal.MISSING_CSP,),
+        roles=frozenset({Role.CYBERSECURITY}),
+        text="Why no CSP?",
+        confidence="med",
+        source="footprint",
+    )
+    assert t.needs_evidence is False
+
+
+def test_evidence_backed_templates_are_marked() -> None:
+    """A template has format slots IFF it is needs_evidence=True.
+
+    Self-maintaining: any new template that adds a {slot} must set
+    needs_evidence=True, and vice versa — no hardcoded signal set to drift.
+    """
+    for tmpl in TEMPLATES:
+        has_slots = bool({fname for _, fname, _, _ in string.Formatter().parse(tmpl.text) if fname})
+        assert tmpl.needs_evidence == has_slots, (
+            f"{tmpl.id}: needs_evidence={tmpl.needs_evidence} but has_slots={has_slots}"
+        )
+
+
+def test_evidence_templates_use_only_safe_slots() -> None:
+    """needs_evidence templates may only reference {summary}/{source}/{date}."""
+    allowed = {"summary", "source", "date"}
+    for tmpl in TEMPLATES:
+        if not tmpl.needs_evidence:
+            continue
+        # Must not raise and must only use allowed keys.
+        tmpl.text.format(summary="s", source="src", date="d")
+        # crude slot extraction
+        slots = {fname for _, fname, _, _ in string.Formatter().parse(tmpl.text) if fname}
+        assert slots <= allowed, f"{tmpl.id} uses unexpected slots: {slots - allowed}"
+
+
+def test_footprint_config_templates_demoted_to_low() -> None:
+    for tid in (
+        "footprint.missing_csp",
+        "footprint.missing_hsts",
+        "footprint.open_staging",
+        "footprint.cert_expiring",
+        "footprint.exposed_admin",
+        "footprint.missing_csp.offensive",
+        "footprint.open_staging.grc",
+    ):
+        assert _by_id(tid).confidence == "low", f"{tid} should be low confidence"
+
+
+def test_job_stack_listed_uses_summary_slot() -> None:
+    t = _by_id("job.stack_listed")
+    assert t.needs_evidence
+    assert "{summary}" in t.text
+    assert "{stack}" not in t.text
 
 
 def test_multiple_sub_disciplines_represented() -> None:

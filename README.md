@@ -60,11 +60,15 @@ tradecraft https://acme.com --ai anthropic
 
 **Live, fully functional:** https://tradecraft-osint.vercel.app/
 
-The Vercel deployment runs the four `safe_for_hosted=True` collectors
-(`footprint`, `company`, `job`, `github`) via Python Functions at
-`/api/compile`, plus a BYOK AI proxy at `/api/ai` (key forwarded once,
-never stored). Submit a target in the Field Dossier form and get a real
-dossier rendered inline.
+The Vercel deployment runs six `safe_for_hosted=True` collectors
+(`footprint`, `company`, `job`, `github`, `news`, `ma`) via Python
+Functions at `/api/compile`, plus a BYOK AI proxy at `/api/ai` (key
+forwarded once, never stored). Submit a target in the Field Dossier form
+and get a real dossier rendered inline — news and M&A findings surface as
+clickable citations in the generated questions. The `news` and `ma`
+collectors are safe to run hosted because they only hit public read-only
+aggregators (Google News RSS, HN Algolia, Wikipedia) — never the target's
+own servers.
 
 **Design preview (static, no backend):** https://scottalt.github.io/tradecraft-osint/
 
@@ -72,9 +76,9 @@ The GitHub Pages mirror exists to show the design without anyone needing to
 deploy. The form is inert there — points users at the CLI or the Vercel URL
 above for actual reconnaissance.
 
-For the full collector roster (news, breaches, m&a, people, business) plus
-BYOK AI on your machine, install the CLI above. The hosted version is
-deliberately narrow — see `docs/ETHICS.md`.
+For the full collector roster (breaches, people, business) plus BYOK AI
+on your machine, install the CLI above. The hosted version is deliberately
+narrow — see `docs/ETHICS.md`.
 
 Source for the web app is in [`web/`](web/).
 
@@ -131,12 +135,23 @@ Dossier written to ./dossiers/example-2026-05-25/
 ## Questions to ask
 
 ### Top picks
-- **Your main site doesn't ship a Content-Security-Policy header.
-  Is that a deliberate posture, or is the team working toward one?**
-  _confidence:_ `med` · _evidence:_ `missing_csp` from `footprint` · _roles:_ `cybersecurity` `swe`
-- **I noticed your apex doesn't return Strict-Transport-Security.
-  How does the team think about transport hardening across subdomains?**
-  _confidence:_ `med` · _evidence:_ `missing_hsts` from `footprint` · _roles:_ `cybersecurity` `devops`
+- **I saw "Acme Corp lays off 12% of security team amid cloud reorg" (Google News,
+  2026-05-26). How has the team's scope and headcount changed, and where does
+  security investment sit now?**  
+  _confidence:_ `high` · _evidence:_ [Google News · 2026-05-26](https://news.google.com/rss/articles/example) · _roles:_ `cybersecurity` `security-leadership`
+- **Wikipedia notes Acme Corp is a subsidiary of GlobalTech Holdings.
+  How does the parent's security governance model affect your team's
+  autonomy and tooling budget?**  
+  _confidence:_ `high` · _evidence:_ [Wikipedia · M&A](https://en.wikipedia.org/wiki/Acme_Corp) · _roles:_ `cybersecurity` `security-leadership`
+
+### Further questions
+- **The job description lists Terraform and AWS as primary infrastructure.
+  Walk me through how the security team is involved in your IaC pipeline
+  today — shift-left review, policy-as-code, or something else?**  
+  _confidence:_ `med` · _evidence:_ [job listing · stack](https://acme.com/careers/sec-eng) · _roles:_ `cybersecurity` `devops`
+- **Your main site doesn't return a Content-Security-Policy header.
+  Is that a deliberate posture for this property, or is it on the roadmap?**  
+  _confidence:_ `low` · _evidence:_ `missing_csp` from `footprint` · _roles:_ `cybersecurity` `swe`
 ```
 
 ## Intended use

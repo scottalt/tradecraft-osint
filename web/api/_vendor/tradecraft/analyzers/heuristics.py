@@ -9,6 +9,14 @@ from tradecraft.models import Findings, Question
 
 _CONFIDENCE_ORDER = {"high": 0, "med": 1, "low": 2}
 
+_SOURCE_LABELS = {
+    "news.google": "Google News",
+    "hn": "Hacker News",
+    "job": "the job listing",
+    "wikipedia": "Wikipedia",
+    "company": "their site",
+}
+
 
 def generate_questions(
     findings: Findings,
@@ -16,7 +24,12 @@ def generate_questions(
     templates: Sequence[QuestionTemplate] = TEMPLATES,
     star_top_n: int = 3,
 ) -> list[Question]:
-    """Produce questions for every template whose signals are present AND whose roles include findings.target.role."""
+    """Produce questions for every template whose signals are present AND whose roles include findings.target.role.
+
+    Evidence-aware: templates marked ``needs_evidence`` only fire when matching
+    Evidence exists (never as boilerplate), and evidence-backed questions sort
+    ahead of evidence-free ones.
+    """
     present = findings.all_signals
     role = findings.target.role
     seen_ids: set[str] = set()
@@ -29,17 +42,37 @@ def generate_questions(
         triggers = [s for s in tmpl.signals if s in present]
         if not triggers:
             continue
+
+        ev = None
+        if tmpl.needs_evidence:
+            for s in triggers:
+                ev = findings.evidence_for(s)
+                if ev is not None:
+                    break
+            if ev is None:
+                # No evidence backing this template — skip rather than emit boilerplate.
+                continue
+            fmt = {
+                "summary": ev.summary,
+                "source": _SOURCE_LABELS.get(ev.source, ev.source),
+                "date": ev.date or "recently",
+            }
+            text = tmpl.text.format(**fmt)
+        else:
+            text = tmpl.text
+
         seen_ids.add(tmpl.id)
         fired.append(
             Question(
-                text=tmpl.text,
+                text=text,
                 confidence=tmpl.confidence,
                 role_tags=set(tmpl.roles),
                 evidence_signal=triggers[0],
                 source_collector=tmpl.source,
+                evidence=ev,
             )
         )
-    fired.sort(key=lambda q: _CONFIDENCE_ORDER[q.confidence])
+    fired.sort(key=lambda q: (0 if q.evidence is not None else 1, _CONFIDENCE_ORDER[q.confidence]))
     for q in fired[:star_top_n]:
         q.is_starred = True
     return fired

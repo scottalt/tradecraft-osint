@@ -6,6 +6,7 @@ import json
 
 from tradecraft.models import (
     CollectorResult,
+    Evidence,
     Findings,
     Question,
     Role,
@@ -45,6 +46,36 @@ def test_renders_full_findings() -> None:
     assert parsed["target"]["company_name"] == "Acme"
     assert parsed["results"][0]["name"] == "footprint"
     assert parsed["questions"][0]["is_starred"] is True
+
+
+def test_evidence_backed_question_serializes_evidence() -> None:
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    findings = Findings(target=target, results=[])
+    questions = [
+        Question(
+            text="What changed after the breach?",
+            confidence="high",
+            role_tags={Role.CYBERSECURITY},
+            evidence_signal=Signal.RECENT_SECURITY_INCIDENT,
+            source_collector="news",
+            is_starred=True,
+            evidence=Evidence(
+                signal=Signal.RECENT_SECURITY_INCIDENT,
+                summary="Acme discloses data breach",
+                url="https://news.example/acme-breach",
+                date="2026-03-11",
+                source="news.google",
+            ),
+        )
+    ]
+    out = render_json(findings, questions)
+    parsed = json.loads(out)
+    ev = parsed["questions"][0]["evidence"]
+    assert ev is not None
+    assert ev["summary"] == "Acme discloses data breach"
+    assert ev["url"] == "https://news.example/acme-breach"
+    assert ev["date"] == "2026-03-11"
+    assert ev["source"] == "news.google"
 
 
 def test_output_is_stable_ordering() -> None:

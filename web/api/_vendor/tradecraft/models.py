@@ -6,7 +6,7 @@ import re
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 
 class Role(StrEnum):
@@ -32,6 +32,7 @@ class Signal(StrEnum):
     # job
     LANGUAGES_MISMATCH_JOB = "languages_mismatch_job"
     STACK_ALIGNMENT_STRONG = "stack_alignment_strong"
+    JOB_STACK_LISTED = "job_stack_listed"
     # news
     RECENT_LAYOFFS = "recent_layoffs"
     RECENT_FUNDING = "recent_funding"
@@ -58,10 +59,26 @@ class Signal(StrEnum):
 
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
+_ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _slugify(value: str) -> str:
     return _SLUG_RE.sub("-", value.lower()).strip("-")
+
+
+class Evidence(BaseModel):
+    signal: Signal
+    summary: str  # the real headline / press title / JD stack phrase
+    url: str | None = None
+    date: str | None = None  # ISO date string when known, e.g. "2026-03-11"
+    source: str  # e.g. "news.google", "hn", "company", "job", "wikipedia"
+
+    @field_validator("date")
+    @classmethod
+    def _validate_iso_date(cls, v: str | None) -> str | None:
+        if v is not None and not _ISO_DATE_RE.fullmatch(v):
+            raise ValueError(f"date must be YYYY-MM-DD, got {v!r}")
+        return v
 
 
 class Target(BaseModel):
@@ -84,6 +101,7 @@ class Question(BaseModel):
     evidence_signal: Signal | None = None
     source_collector: str
     is_starred: bool = False
+    evidence: Evidence | None = None
 
 
 class CollectorError(BaseModel):
@@ -98,6 +116,7 @@ class CollectorResult(BaseModel):
     signals: list[Signal] = Field(default_factory=list)
     errors: list[CollectorError] = Field(default_factory=list)
     duration_ms: int
+    evidence: list[Evidence] = Field(default_factory=list)
 
 
 class Findings(BaseModel):
@@ -111,3 +130,13 @@ class Findings(BaseModel):
 
     def collector(self, name: str) -> CollectorResult | None:
         return next((r for r in self.results if r.name == name), None)
+
+    def evidence_for(self, signal: Signal) -> Evidence | None:
+        matches = [e for r in self.results for e in r.evidence if e.signal == signal]
+        if not matches:
+            return None
+        dated = [e for e in matches if e.date is not None]
+        if dated:
+            # most-recent-wins; url is the tie-break for determinism
+            return max(dated, key=lambda e: (e.date, e.url or ""))  # type: ignore[arg-type]
+        return matches[0]

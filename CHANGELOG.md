@@ -6,6 +6,48 @@ All notable changes to this project will be documented here. Follows
 
 ## [Unreleased]
 
+### Added
+
+- **Evidence-driven interview questions.** News headlines, M&A facts, and
+  JD stack keywords are now cited inline in the generated question text —
+  with date, source, and a clickable link (e.g. _"I saw 'Acme Corp lays
+  off 12% of security team…' (Google News, 2026-05-26). How has scope
+  shifted?"_). Templates that lack real evidence to cite are suppressed
+  entirely rather than emitting boilerplate.
+- **Content-density note.** When no evidence-backed questions fire, the
+  questions section shows a one-line nudge ("Limited recent public material
+  … add a job URL or run the full CLI") instead of padding with config
+  trivia.
+- **`JOB_STACK_LISTED` signal** emitted by the `job` collector when the JD
+  names specific technologies; used by new stack-awareness question templates.
+- **`news` + `ma` collectors enabled on the hosted Vercel site.** The
+  deployment now runs six `safe_for_hosted=True` collectors: `footprint`,
+  `company`, `job`, `github`, `news`, `ma`. Both new collectors hit only
+  public read-only aggregators (Google News RSS, HN Algolia, Wikipedia) and
+  never the target's own servers, keeping the hosted posture safe.
+- **News collector recency + relevance filtering.** Items older than 365 days
+  are dropped; items without a company-name match are filtered out, reducing
+  false positives in the evidence cache.
+
+### Changed
+
+- **Evidence-backed questions sort first, then by confidence.** Questions
+  citing real news/M&A/JD evidence appear at the top of every section;
+  config-only signals rank below them regardless of their individual
+  confidence level.
+- **Security-config templates demoted to `confidence="low"`.** Templates
+  for missing CSP/HSTS, exposed staging subdomains, certificate expiry, and
+  open admin paths are now secondary material. They still appear in the
+  dossier but no longer dominate the top-picks list.
+
+### Security
+
+- **News evidence URLs scheme-validated (http/https only)** at ingest in the
+  `news` collector and in the web UI renderer. Feed links are untrusted
+  user-facing input; this blocks `javascript:` and `data:` URIs from
+  appearing as clickable evidence citations, preventing XSS through the
+  evidence footnote.
+
 ## [1.1.0] - 2026-05-30
 
 ### Added
