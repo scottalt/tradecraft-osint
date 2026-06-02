@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Awaitable
 from typing import Any, ClassVar
 
@@ -102,7 +103,7 @@ class BusinessCollector:
                 th = row.css_first("th")
                 td = row.css_first("td")
                 if th and td:
-                    fields[th.text(strip=True)] = td.text(strip=True)
+                    fields[BusinessCollector._clean_text(th)] = BusinessCollector._clean_text(td)
             data["wikipedia"] = fields
             signals.append(Signal.WIKIPEDIA_INFOBOX_PRESENT)
 
@@ -151,10 +152,21 @@ class BusinessCollector:
         for p in candidates:
             if BusinessCollector._has_table_ancestor(p):
                 continue
-            text = p.text(strip=True)
+            text = BusinessCollector._clean_text(p)
             if len(text) > 60:
                 return text
         return None
+
+    @staticmethod
+    def _clean_text(node: Node) -> str:
+        """Extract node text with spaces preserved between inline elements.
+
+        ``selectolax`` ``.text(strip=True)`` concatenates inline children with no
+        separator, producing glued words like ``cloudcybersecurity`` or
+        ``inSan Francisco`` that break ``\\bword\\b`` keyword matching. Using a
+        space separator and collapsing whitespace runs keeps words standalone.
+        """
+        return re.sub(r"\s+", " ", node.text(separator=" ", strip=True)).strip()
 
     @staticmethod
     def _has_table_ancestor(node: Node, max_depth: int = 8) -> bool:

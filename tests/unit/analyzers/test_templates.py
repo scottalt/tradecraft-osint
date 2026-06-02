@@ -62,6 +62,12 @@ def test_library_has_expanded_for_v0_2() -> None:
 # Contextual signals: INDUSTRY_IDENTIFIED / BUSINESS_DESCRIPTION / JOB_STACK_LISTED
 # are handled by analyzers/contextual.py (industry + JD-tech questions), not by
 # the template library.
+#
+# Low-value recon signals: RECENT_PRESS_RELEASE and WIKIPEDIA_INFOBOX_PRESENT
+# only ever produced vague filler ("I saw your recent announcement, how is it
+# landing", "how does the security org map onto the historical business"), so
+# their templates were removed. The signals still surface in the dossier but
+# carry no interview question.
 _TEMPLATE_EXCLUDED_SIGNALS: frozenset[Signal] = frozenset(
     {
         # footprint recon-only
@@ -74,6 +80,9 @@ _TEMPLATE_EXCLUDED_SIGNALS: frozenset[Signal] = frozenset(
         Signal.INDUSTRY_IDENTIFIED,
         Signal.BUSINESS_DESCRIPTION,
         Signal.JOB_STACK_LISTED,
+        # low-value recon: templates removed as vague filler
+        Signal.RECENT_PRESS_RELEASE,
+        Signal.WIKIPEDIA_INFOBOX_PRESENT,
     }
 )
 
@@ -149,6 +158,10 @@ def test_footprint_config_templates_removed() -> None:
         "business.industry_identified",
         "business.description",
         "job.stack_listed",
+        # weak filler removed per product direction
+        "company.recent_press",
+        "company.recent_press.cyber_specific",
+        "business.wikipedia",
     ):
         assert tid not in ids, f"{tid} should have been removed"
 

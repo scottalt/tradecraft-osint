@@ -292,25 +292,46 @@ def _matches_keyword(text: str, keyword: str) -> bool:
     return re.search(r"\b" + re.escape(keyword) + r"\b", text) is not None
 
 
+def _classification(findings: Findings) -> tuple[str, Evidence] | None:
+    """Build (classification_text, citation_evidence) from ALL industry/description evidence.
+
+    ``evidence_for`` returns only a single best match, so when two
+    BUSINESS_DESCRIPTION evidences exist (e.g. a weak homepage tagline plus a
+    rich Wikipedia description) it may pick the weak one and miss the keywords
+    in the other. Here we aggregate the summaries of *every* INDUSTRY_IDENTIFIED
+    / BUSINESS_DESCRIPTION evidence so they all contribute to keyword matching.
+
+    Citation evidence: prefer the INDUSTRY_IDENTIFIED evidence if present;
+    otherwise the LONGEST BUSINESS_DESCRIPTION summary (the richer Wikipedia
+    description beats a short homepage tagline).
+    """
+    industry_evs: list[Evidence] = []
+    desc_evs: list[Evidence] = []
+    for r in findings.results:
+        for e in r.evidence:
+            if e.signal == Signal.INDUSTRY_IDENTIFIED:
+                industry_evs.append(e)
+            elif e.signal == Signal.BUSINESS_DESCRIPTION:
+                desc_evs.append(e)
+
+    if not industry_evs and not desc_evs:
+        return None
+
+    text = " ".join(e.summary for e in (*industry_evs, *desc_evs)).lower()
+
+    cite_ev = industry_evs[0] if industry_evs else max(desc_evs, key=lambda e: len(e.summary))
+
+    return text, cite_ev
+
+
 def _industry_questions(findings: Findings) -> list[Question]:
     role = findings.target.role
     is_cyber = role == Role.CYBERSECURITY
 
-    industry_ev = findings.evidence_for(Signal.INDUSTRY_IDENTIFIED)
-    desc_ev = findings.evidence_for(Signal.BUSINESS_DESCRIPTION)
-
-    if industry_ev is None and desc_ev is None:
+    classification = _classification(findings)
+    if classification is None:
         return []
-
-    parts: list[str] = []
-    if industry_ev is not None:
-        parts.append(industry_ev.summary)
-    if desc_ev is not None:
-        parts.append(desc_ev.summary)
-    text = " ".join(parts).lower()
-
-    # Evidence to cite: prefer INDUSTRY_IDENTIFIED, else BUSINESS_DESCRIPTION.
-    cite_ev: Evidence = industry_ev if industry_ev is not None else desc_ev  # type: ignore[assignment]
+    text, cite_ev = classification
 
     matched: list[IndustryProfile] = [
         p for p in _INDUSTRY_PROFILES if any(_matches_keyword(text, kw) for kw in p.keywords)
@@ -343,11 +364,11 @@ def _industry_questions(findings: Findings) -> list[Question]:
         return questions
 
     # Industry/description text exists but no profile matched -> one generic fallback.
-    if industry_ev is not None:
-        industry_or_desc_short = industry_ev.summary
+    # Prefer the INDUSTRY_IDENTIFIED summary, else the (longest) description.
+    if cite_ev.signal == Signal.INDUSTRY_IDENTIFIED:
+        industry_or_desc_short = cite_ev.summary
     else:
-        assert desc_ev is not None
-        industry_or_desc_short = desc_ev.summary[:100]
+        industry_or_desc_short = cite_ev.summary[:100]
 
     if is_cyber:
         q_text = (

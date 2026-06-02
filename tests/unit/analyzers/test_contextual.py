@@ -142,6 +142,54 @@ def test_industry_preferred_over_description_for_citation() -> None:
     assert all(q.evidence is ind for q in qs)
 
 
+def test_all_descriptions_contribute_and_longest_is_cited() -> None:
+    """Cloudflare-like regression guard for Fix 1.
+
+    A weak homepage tagline AND a rich Wikipedia description both tagged
+    BUSINESS_DESCRIPTION (across two collectors). Classification must aggregate
+    BOTH so the rich text's keywords match 'infrastructure, cloud & security'
+    (not the generic fallback), and the cited evidence is the longer one.
+    """
+    weak = Evidence(
+        signal=Signal.BUSINESS_DESCRIPTION,
+        summary="Welcome to Acme",
+        url="https://acme.com",
+        source="company",
+    )
+    rich = Evidence(
+        signal=Signal.BUSINESS_DESCRIPTION,
+        summary=(
+            "Acme provides content delivery network (CDN) services, "
+            "cloud cybersecurity, and DDoS mitigation"
+        ),
+        url="https://en.wikipedia.org/wiki/Acme",
+        source="wikipedia",
+    )
+    results = [
+        CollectorResult(
+            name="company",
+            data={},
+            signals=[],
+            errors=[],
+            duration_ms=0,
+            evidence=[weak],
+        ),
+        CollectorResult(
+            name="business",
+            data={},
+            signals=[],
+            errors=[],
+            duration_ms=0,
+            evidence=[rich],
+        ),
+    ]
+    qs = contextual_questions(_findings(results=results))
+    assert qs, "expected at least one industry question"
+    assert any("infrastructure, cloud & security" in q.text for q in qs)
+    # Cited evidence is the longer (richer) description, never the weak tagline.
+    assert all(q.evidence is rich for q in qs)
+
+
 # ---- JD-tech questions ----
 
 

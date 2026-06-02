@@ -167,6 +167,35 @@ async def test_lead_paragraph_skips_infobox_p(http) -> None:
 
 
 @respx.mock
+async def test_lead_paragraph_preserves_spaces_between_inline_elements(http) -> None:
+    """Inline links must not be glued: 'cloud <a>cybersecurity</a>' -> standalone
+    'cybersecurity', not 'cloudcybersecurity' (which would break \\bword\\b matching)."""
+    client, cache = http
+    respx.get("https://www.sec.gov/files/company_tickers.json").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    wiki = (
+        "<!doctype html><html><body><div class='mw-parser-output'>"
+        "<p>Acme Corporation provides <a>content delivery network</a> and "
+        "<a>cloud cybersecurity</a> services headquartered "
+        "in <a>San Francisco</a>.</p>"
+        "</div></body></html>"
+    )
+    respx.get("https://en.wikipedia.org/wiki/Acme_Corporation").mock(
+        return_value=httpx.Response(200, text=wiki)
+    )
+    target = Target(company_name="Acme Corporation", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await BusinessCollector().run(ctx)
+
+    desc_ev = next(e for e in result.evidence if e.signal == Signal.BUSINESS_DESCRIPTION)
+    words = desc_ev.summary.split()
+    assert "cybersecurity" in words, f"expected standalone 'cybersecurity' in {desc_ev.summary!r}"
+    assert "cloudcybersecurity" not in desc_ev.summary
+    assert "inSan" not in desc_ev.summary
+
+
+@respx.mock
 async def test_no_match(http) -> None:
     client, cache = http
     respx.get("https://www.sec.gov/files/company_tickers.json").mock(

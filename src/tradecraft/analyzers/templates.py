@@ -35,17 +35,6 @@ _ALL_TECH_ROLES = frozenset(
 
 TEMPLATES: tuple[QuestionTemplate, ...] = (
     QuestionTemplate(
-        id="company.recent_press",
-        signals=(Signal.RECENT_PRESS_RELEASE,),
-        roles=frozenset(_ALL_TECH_ROLES | {Role.GENERIC}),
-        text=(
-            "I saw your recent announcement. How is that landing internally, "
-            "and how does it shape what this team will prioritize next quarter?"
-        ),
-        confidence="med",
-        source="company",
-    ),
-    QuestionTemplate(
         id="company.founder_technical",
         signals=(Signal.FOUNDER_TECHNICAL,),
         roles=_ALL_TECH_ROLES,
@@ -272,17 +261,6 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
     ),
     # ---- company (AppSec + GRC) ----
     QuestionTemplate(
-        id="company.recent_press.cyber_specific",
-        signals=(Signal.RECENT_PRESS_RELEASE,),
-        roles=frozenset({Role.CYBERSECURITY}),
-        text=(
-            "I saw the recent announcement. What does that mean for the security team's "
-            "near-term roadmap — new product surface, integrations, or compliance work?"
-        ),
-        confidence="med",
-        source="company",
-    ),
-    QuestionTemplate(
         id="company.founder_technical.cyber_specific",
         signals=(Signal.FOUNDER_TECHNICAL,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
@@ -375,18 +353,6 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "what constitutes a material incident?"
         ),
         confidence="med",
-        source="business",
-    ),
-    QuestionTemplate(
-        id="business.wikipedia",
-        signals=(Signal.WIKIPEDIA_INFOBOX_PRESENT,),
-        roles=frozenset({Role.CYBERSECURITY, Role.GENERIC}),
-        text=(
-            "Your Wikipedia page covers history and product lines. "
-            "How does the security org map onto the historical business — "
-            "centralized, federated by business unit, or matrixed?"
-        ),
-        confidence="low",
         source="business",
     ),
     QuestionTemplate(
