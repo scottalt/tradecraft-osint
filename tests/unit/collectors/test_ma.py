@@ -31,7 +31,7 @@ async def http(tmp_path: Path):
 def test_metadata() -> None:
     c = MaCollector()
     assert c.name == "ma"
-    assert c.safe_for_hosted is False
+    assert c.safe_for_hosted is True
 
 
 @respx.mock

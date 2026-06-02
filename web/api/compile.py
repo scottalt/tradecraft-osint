@@ -33,6 +33,8 @@ from tradecraft.collectors.company import CompanyCollector  # noqa: E402
 from tradecraft.collectors.footprint import FootprintCollector  # noqa: E402
 from tradecraft.collectors.github import GitHubCollector  # noqa: E402
 from tradecraft.collectors.job import JobCollector  # noqa: E402
+from tradecraft.collectors.ma import MaCollector  # noqa: E402
+from tradecraft.collectors.news import NewsCollector  # noqa: E402
 from tradecraft.config import HttpConfig  # noqa: E402
 from tradecraft.http import HttpClient  # noqa: E402
 from tradecraft.models import Role, Target  # noqa: E402
@@ -45,6 +47,8 @@ HOSTED_COLLECTORS = [
     CompanyCollector(),
     JobCollector(),
     GitHubCollector(),
+    NewsCollector(),
+    MaCollector(),
 ]
 
 

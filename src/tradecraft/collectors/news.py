@@ -119,7 +119,7 @@ def _apply_relevance_filter(items: list[dict[str, Any]], company_name: str) -> l
 class NewsCollector:
     name: ClassVar[str] = "news"
     requires_network: ClassVar[bool] = True
-    safe_for_hosted: ClassVar[bool] = False
+    safe_for_hosted: ClassVar[bool] = True
     role_relevance: ClassVar[set[Role]] = {
         Role.CYBERSECURITY,
         Role.SWE,
