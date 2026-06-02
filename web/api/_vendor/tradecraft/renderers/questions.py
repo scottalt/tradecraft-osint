@@ -58,8 +58,7 @@ def _format(q: Question) -> str:
         label = ev.source
         if ev.date:
             label = f"{label} · {ev.date}"
-        source_part = f"[{label}]({ev.url})" if ev.url else label
-        evidence = f"_source:_ {source_part}"
+        evidence = f"[{label}]({ev.url})" if ev.url else label
     elif q.evidence_signal is not None:
         evidence = f"`{q.evidence_signal.value}` from `{q.source_collector}`"
     else:
