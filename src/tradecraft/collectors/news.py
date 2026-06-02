@@ -66,8 +66,9 @@ def _parse_date_iso(item: dict[str, Any]) -> str | None:
             if parsed_time is not None:
                 return datetime(*parsed_time[:6], tzinfo=UTC).strftime("%Y-%m-%d")
         if source == "hn":
-            # HN gives ISO 8601: "2026-03-11T12:00:00.000Z" — take date portion
-            raw = item.get("published", "")
+            # HN Algolia API gives ISO 8601 in "created_at": "2026-03-11T12:00:00.000Z"
+            # The item dict is built in run() with key "created_at" mapped from h["created_at"].
+            raw = item.get("created_at", "")
             if raw:
                 return raw[:10]
     except Exception:
@@ -76,8 +77,14 @@ def _parse_date_iso(item: dict[str, Any]) -> str | None:
 
 
 def _apply_recency_filter(items: list[dict[str, Any]], today: datetime) -> list[dict[str, Any]]:
-    """Drop items whose parsed date is older than NEWS_MAX_AGE_DAYS. Keep undated items."""
-    cutoff = today - timedelta(days=NEWS_MAX_AGE_DAYS)
+    """Drop items whose parsed date is older than NEWS_MAX_AGE_DAYS. Keep undated items.
+
+    The cutoff is computed as midnight UTC on (today - NEWS_MAX_AGE_DAYS) so that
+    an item dated exactly on the cutoff day is kept (inclusive boundary).
+    """
+    cutoff = datetime(today.year, today.month, today.day, tzinfo=UTC) - timedelta(
+        days=NEWS_MAX_AGE_DAYS
+    )
     result = []
     for item in items:
         date_iso = item.get("date_iso")
@@ -104,7 +111,7 @@ def _apply_relevance_filter(items: list[dict[str, Any]], company_name: str) -> l
     result = []
     for item in items:
         title_lower = item.get("title", "").lower()
-        if any(tok in title_lower for tok in tokens):
+        if any(re.search(rf"\b{re.escape(tok)}\b", title_lower) for tok in tokens):
             result.append(item)
     return result
 
@@ -163,7 +170,8 @@ class NewsCollector:
                     item = {
                         "title": h.get("title", ""),
                         "url": h.get("url", ""),
-                        "published": h.get("created_at", ""),
+                        # "created_at" is the HN Algolia field name; used by _parse_date_iso
+                        "created_at": h.get("created_at", ""),
                         "source": "hn",
                     }
                     item["date_iso"] = _parse_date_iso(item)

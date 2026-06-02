@@ -20,7 +20,7 @@
     <item>
       <title>Acme reports record Q4 revenue growth</title>
       <link>https://example-news.test/acme-q4</link>
-      <pubDate>Fri, 02 February 2026 00:00:00 GMT</pubDate>
+      <pubDate>Fri, 02 Feb 2026 00:00:00 GMT</pubDate>
     </item>
   </channel>
 </rss>

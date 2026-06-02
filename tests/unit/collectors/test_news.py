@@ -110,13 +110,15 @@ def test_parse_date_iso_google_news_missing_struct_time() -> None:
 
 def test_parse_date_iso_hn_iso_string() -> None:
     """HN items with ISO 8601 created_at parse to YYYY-MM-DD date portion."""
-    item = {"source": "hn", "published": "2026-03-11T12:00:00.000Z"}
+    # Dict shape mirrors what run() builds: key is "created_at", not "published"
+    item = {"source": "hn", "created_at": "2026-03-11T12:00:00.000Z"}
     assert _parse_date_iso(item) == "2026-03-11"
 
 
 def test_parse_date_iso_hn_missing() -> None:
     """HN items without created_at return None."""
-    item = {"source": "hn", "published": ""}
+    # Dict shape mirrors what run() builds: key is "created_at", not "published"
+    item = {"source": "hn", "created_at": ""}
     assert _parse_date_iso(item) is None
 
 
@@ -164,6 +166,15 @@ def test_recency_filter_boundary_one_day_inside() -> None:
     today = datetime.now(tz=UTC)
     inside_date = (today - timedelta(days=NEWS_MAX_AGE_DAYS - 1)).strftime("%Y-%m-%d")
     items = [_make_item("Near-boundary headline", inside_date)]
+    result = _apply_recency_filter(items, today)
+    assert len(result) == 1
+
+
+def test_recency_filter_boundary_exact_cutoff() -> None:
+    """An item dated exactly today - NEWS_MAX_AGE_DAYS is KEPT (cutoff is inclusive)."""
+    today = datetime.now(tz=UTC)
+    exact_cutoff_date = (today - timedelta(days=NEWS_MAX_AGE_DAYS)).strftime("%Y-%m-%d")
+    items = [_make_item("Exact-cutoff headline", exact_cutoff_date)]
     result = _apply_recency_filter(items, today)
     assert len(result) == 1
 
@@ -229,6 +240,20 @@ def test_relevance_filter_no_usable_tokens_keeps_all() -> None:
     assert len(result) == 2
 
 
+def test_relevance_filter_word_boundary_excludes_substring_match() -> None:
+    """Company name 'Arm' must NOT match a title containing 'alarming' (substring false-positive)."""
+    items = [_make_item("Alarming breach at OtherCo", None)]
+    result = _apply_relevance_filter(items, "Arm")
+    assert len(result) == 0
+
+
+def test_relevance_filter_word_boundary_keeps_exact_word_match() -> None:
+    """Company name 'Arm' MUST match a title where 'Arm' appears as a whole word."""
+    items = [_make_item("Arm announces new chip architecture", None)]
+    result = _apply_relevance_filter(items, "Arm")
+    assert len(result) == 1
+
+
 # ---------------------------------------------------------------------------
 # Integration-style tests: Evidence attachment via NewsCollector.run
 # ---------------------------------------------------------------------------
@@ -288,6 +313,9 @@ async def test_evidence_attached_for_fired_signal(http) -> None:
     assert ev.url == "https://ex.test/a"
     assert ev.source == "news.google"
     assert ev.date is not None  # parsed from pubDate
+    # Fix 5: assert exact YYYY-MM-DD value, not just non-None
+    expected_date = (today - timedelta(days=20)).strftime("%Y-%m-%d")
+    assert ev.date == expected_date
 
 
 @respx.mock
