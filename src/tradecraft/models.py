@@ -138,5 +138,5 @@ class Findings(BaseModel):
         dated = [e for e in matches if e.date is not None]
         if dated:
             # most-recent-wins; url is the tie-break for determinism
-            return max(dated, key=lambda e: (e.date, e.url or ""))  # type: ignore[arg-type]
+            return max(dated, key=lambda e: (e.date, e.url or ""))
         return matches[0]

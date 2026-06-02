@@ -64,13 +64,14 @@ def _parse_date_iso(item: dict[str, Any]) -> str | None:
             # feedparser gives entry.published_parsed as time.struct_time
             parsed_time = item.get("published_parsed")
             if parsed_time is not None:
-                return datetime(*parsed_time[:6], tzinfo=UTC).strftime("%Y-%m-%d")
+                year, month, day = parsed_time[0], parsed_time[1], parsed_time[2]
+                return datetime(year, month, day, tzinfo=UTC).strftime("%Y-%m-%d")
         if source == "hn":
             # HN Algolia API gives ISO 8601 in "created_at": "2026-03-11T12:00:00.000Z"
             # The item dict is built in run() with key "created_at" mapped from h["created_at"].
             raw = item.get("created_at", "")
             if raw:
-                return raw[:10]
+                return str(raw)[:10]
     except Exception:
         pass
     return None
@@ -202,7 +203,7 @@ class NewsCollector:
             # Pick most-recent item: dated items sorted by date desc, then undated
             dated = sorted(
                 [i for i in matching if i.get("date_iso") is not None],
-                key=lambda i: i["date_iso"],  # type: ignore[arg-type]
+                key=lambda i: i["date_iso"],
                 reverse=True,
             )
             undated = [i for i in matching if i.get("date_iso") is None]
