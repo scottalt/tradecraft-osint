@@ -469,6 +469,12 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         source="business",
     ),
     # ---- ma (offensive + AppSec + GRC) ----
+    # NOTE: the ma.recent.* templates key on Signal.M_A_RECENT, which no
+    # collector emits yet (reliable acquisition-event dating is deferred — see
+    # CHANGELOG). They are marked needs_evidence=True, so they stay safely
+    # inert (never fire as boilerplate) until a future collector emits
+    # M_A_RECENT with real evidence. The ma collector currently emits only
+    # SUBSIDIARY_OF and M_A_FREQUENT_ACQUIRER (see ma.subsidiary / ma.frequent_acquirer).
     QuestionTemplate(
         id="ma.recent.offensive",
         signals=(Signal.M_A_RECENT,),
