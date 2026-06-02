@@ -563,4 +563,28 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         confidence="low",
         source="footprint",
     ),
+    QuestionTemplate(
+        id="business.industry_identified",
+        signals=(Signal.INDUSTRY_IDENTIFIED,),
+        roles=frozenset(_ALL_TECH_ROLES | {Role.GENERIC}),
+        text=(
+            "You operate in {summary} (per {source}). "
+            "What does that sector's threat model mean for how the team prioritizes security work?"
+        ),
+        confidence="med",
+        source="business",
+        needs_evidence=True,
+    ),
+    QuestionTemplate(
+        id="business.description",
+        signals=(Signal.BUSINESS_DESCRIPTION,),
+        roles=frozenset(_ALL_TECH_ROLES | {Role.GENERIC}),
+        text=(
+            "I read that you're '{summary}' (via {source}). "
+            "Which part of that mission puts the most pressure on the security team today?"
+        ),
+        confidence="med",
+        source="business",
+        needs_evidence=True,
+    ),
 )

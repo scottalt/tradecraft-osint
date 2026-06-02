@@ -35,7 +35,7 @@ async def http(tmp_path: Path):
 def test_metadata() -> None:
     c = BusinessCollector()
     assert c.name == "business"
-    assert c.safe_for_hosted is False
+    assert c.safe_for_hosted is True
 
 
 @respx.mock
@@ -54,6 +54,57 @@ async def test_public_company_and_wikipedia(http, fixtures) -> None:
     assert Signal.PUBLIC_COMPANY in result.signals
     assert Signal.WIKIPEDIA_INFOBOX_PRESENT in result.signals
     assert result.data["ticker"] == "ACME"
+
+
+@respx.mock
+async def test_industry_and_description_evidence(http, fixtures) -> None:
+    client, cache = http
+    respx.get("https://www.sec.gov/files/company_tickers.json").mock(
+        return_value=httpx.Response(200, json=fixtures["sec"])
+    )
+    respx.get("https://en.wikipedia.org/wiki/Acme_Corporation").mock(
+        return_value=httpx.Response(200, text=str(fixtures["wiki"]))
+    )
+    target = Target(company_name="Acme Corporation", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await BusinessCollector().run(ctx)
+
+    assert Signal.INDUSTRY_IDENTIFIED in result.signals
+    assert result.data["industry"] == "Security software"
+    industry_ev = next(e for e in result.evidence if e.signal == Signal.INDUSTRY_IDENTIFIED)
+    assert industry_ev.summary == "Security software"
+    assert industry_ev.source == "wikipedia"
+    assert industry_ev.url == "https://en.wikipedia.org/wiki/Acme_Corporation"
+
+    assert Signal.BUSINESS_DESCRIPTION in result.signals
+    desc_ev = next(e for e in result.evidence if e.signal == Signal.BUSINESS_DESCRIPTION)
+    assert "security software company" in desc_ev.summary
+    assert desc_ev.source == "wikipedia"
+
+
+@respx.mock
+async def test_no_industry_or_description_when_missing(http) -> None:
+    client, cache = http
+    respx.get("https://www.sec.gov/files/company_tickers.json").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    bare_wiki = (
+        "<!doctype html><html><body>"
+        "<table class='infobox'><tr><th>Founded</th><td>2018</td></tr></table>"
+        "<p>Short.</p>"
+        "</body></html>"
+    )
+    respx.get("https://en.wikipedia.org/wiki/Acme_Corporation").mock(
+        return_value=httpx.Response(200, text=bare_wiki)
+    )
+    target = Target(company_name="Acme Corporation", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await BusinessCollector().run(ctx)
+
+    assert Signal.WIKIPEDIA_INFOBOX_PRESENT in result.signals
+    assert Signal.INDUSTRY_IDENTIFIED not in result.signals
+    assert Signal.BUSINESS_DESCRIPTION not in result.signals
+    assert not result.evidence
 
 
 @respx.mock

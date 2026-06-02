@@ -47,6 +47,9 @@ class Signal(StrEnum):
     # people
     STRONG_ENG_BRAND = "strong_eng_brand"
     QUIET_ENG_BRAND = "quiet_eng_brand"
+    # business context
+    INDUSTRY_IDENTIFIED = "industry_identified"
+    BUSINESS_DESCRIPTION = "business_description"
     # business
     PUBLIC_COMPANY = "public_company"
     RECENT_10K = "recent_10k"

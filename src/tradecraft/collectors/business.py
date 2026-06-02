@@ -12,6 +12,7 @@ from tradecraft.collectors.base import CollectorContext
 from tradecraft.models import (
     CollectorError,
     CollectorResult,
+    Evidence,
     Role,
     Signal,
 )
@@ -23,7 +24,7 @@ _WIKIPEDIA_URL = "https://en.wikipedia.org/wiki/{slug}"
 class BusinessCollector:
     name: ClassVar[str] = "business"
     requires_network: ClassVar[bool] = True
-    safe_for_hosted: ClassVar[bool] = False
+    safe_for_hosted: ClassVar[bool] = True
     role_relevance: ClassVar[set[Role]] = {
         Role.CYBERSECURITY,
         Role.ENG_LEADERSHIP,
@@ -33,14 +34,16 @@ class BusinessCollector:
     async def run(self, ctx: CollectorContext) -> CollectorResult:
         errors: list[CollectorError] = []
         signals: list[Signal] = []
+        evidence: list[Evidence] = []
         data: dict[str, Any] = {"ticker": None, "wikipedia": None}
 
         company_lc = ctx.target.company_name.lower()
         wiki_slug = ctx.target.company_name.replace(" ", "_")
+        wiki_url = _WIKIPEDIA_URL.format(slug=wiki_slug)
 
         sec_resp, wiki_resp = await asyncio.gather(
             self._safe(ctx.http.get(_SEC_TICKERS_URL), errors, "sec"),
-            self._safe(ctx.http.get(_WIKIPEDIA_URL.format(slug=wiki_slug)), errors, "wiki"),
+            self._safe(ctx.http.get(wiki_url), errors, "wiki"),
         )
 
         if sec_resp is not None and sec_resp.status_code == 200:
@@ -64,17 +67,7 @@ class BusinessCollector:
 
         if wiki_resp is not None and wiki_resp.status_code == 200:
             try:
-                tree = HTMLParser(wiki_resp.text)
-                infobox = tree.css_first("table.infobox")
-                if infobox:
-                    fields: dict[str, str] = {}
-                    for row in infobox.css("tr"):
-                        th = row.css_first("th")
-                        td = row.css_first("td")
-                        if th and td:
-                            fields[th.text(strip=True)] = td.text(strip=True)
-                    data["wikipedia"] = fields
-                    signals.append(Signal.WIKIPEDIA_INFOBOX_PRESENT)
+                self._parse_wikipedia(wiki_resp.text, wiki_url, data, signals, evidence)
             except Exception as exc:
                 errors.append(
                     CollectorError(
@@ -90,7 +83,63 @@ class BusinessCollector:
             signals=signals,
             errors=errors,
             duration_ms=0,
+            evidence=evidence,
         )
+
+    @staticmethod
+    def _parse_wikipedia(
+        html: str,
+        wiki_url: str,
+        data: dict[str, Any],
+        signals: list[Signal],
+        evidence: list[Evidence],
+    ) -> None:
+        tree = HTMLParser(html)
+        infobox = tree.css_first("table.infobox")
+        if infobox:
+            fields: dict[str, str] = {}
+            for row in infobox.css("tr"):
+                th = row.css_first("th")
+                td = row.css_first("td")
+                if th and td:
+                    fields[th.text(strip=True)] = td.text(strip=True)
+            data["wikipedia"] = fields
+            signals.append(Signal.WIKIPEDIA_INFOBOX_PRESENT)
+
+            industry = next(
+                (v for k, v in fields.items() if k.lower() == "industry" and v.strip()),
+                None,
+            )
+            if industry:
+                data["industry"] = industry
+                signals.append(Signal.INDUSTRY_IDENTIFIED)
+                evidence.append(
+                    Evidence(
+                        signal=Signal.INDUSTRY_IDENTIFIED,
+                        summary=industry,
+                        url=wiki_url,
+                        date=None,
+                        source="wikipedia",
+                    )
+                )
+
+        # Lead paragraph: first real-prose <p> (skip empties/hatnotes).
+        for p in tree.css("p"):
+            text = p.text(strip=True)
+            if len(text) > 60:
+                description = text[:400]
+                data["description"] = description
+                signals.append(Signal.BUSINESS_DESCRIPTION)
+                evidence.append(
+                    Evidence(
+                        signal=Signal.BUSINESS_DESCRIPTION,
+                        summary=description,
+                        url=wiki_url,
+                        date=None,
+                        source="wikipedia",
+                    )
+                )
+                break
 
     @staticmethod
     async def _safe(
