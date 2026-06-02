@@ -513,7 +513,7 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         signals=(Signal.M_A_FREQUENT_ACQUIRER,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
         text=(
-            "{summary}. "
+            "{summary} (per {source}). "
             "Is there a standing post-acquisition security playbook, or is each deal bespoke?"
         ),
         confidence="med",
@@ -525,7 +525,7 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         signals=(Signal.SUBSIDIARY_OF,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
         text=(
-            "{summary} — where does this team's security autonomy end: "
+            "{summary} (per {source}) — where does this team's security autonomy end: "
             "tooling choices, hiring, incident escalation?"
         ),
         confidence="low",

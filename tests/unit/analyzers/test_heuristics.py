@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from tradecraft.analyzers.heuristics import generate_questions
-from tradecraft.analyzers.templates import QuestionTemplate
+from tradecraft.analyzers.templates import TEMPLATES, QuestionTemplate
 from tradecraft.models import (
     CollectorResult,
     Evidence,
@@ -75,7 +75,8 @@ def test_top_3_are_starred() -> None:
     )
     questions = generate_questions(f)
     starred = [q for q in questions if q.is_starred]
-    assert len(starred) <= 3
+    assert len(questions) >= 3  # precondition: enough templates fired
+    assert len(starred) == 3
 
 
 def test_no_duplicate_templates_when_multiple_signals_share_one_template() -> None:
@@ -225,6 +226,25 @@ def test_real_headline_med_outranks_config_med() -> None:
     assert "real headline" in questions[0].text
     assert questions[0].confidence == "med"
     assert "Hacker News" in questions[0].text
+
+
+def test_ma_subsidiary_renders_summary_and_source_no_date() -> None:
+    """ma.subsidiary cites {summary} + {source} (provenance) but NOT a misleading
+    date — the parent/subsidiary relationship is structural, not a recent event."""
+    tmpl = next(t for t in TEMPLATES if t.id == "ma.subsidiary")
+    ev = Evidence(
+        signal=Signal.SUBSIDIARY_OF,
+        summary="Acme is a subsidiary of Globex",
+        date=None,
+        source="wikipedia",
+    )
+    f = _findings_with([Signal.SUBSIDIARY_OF], evidence=[ev])
+    questions = generate_questions(f, templates=(tmpl,))
+    assert len(questions) == 1
+    text = questions[0].text
+    assert "Acme is a subsidiary of Globex" in text  # summary
+    assert "Wikipedia" in text  # friendly source label for provenance
+    assert "recently" not in text  # no misleading date fallback
 
 
 def test_question_model_accepts_evidence() -> None:

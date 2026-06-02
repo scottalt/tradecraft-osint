@@ -78,20 +78,16 @@ def test_needs_evidence_field_defaults_false() -> None:
 
 
 def test_evidence_backed_templates_are_marked() -> None:
-    """Templates whose signal carries Evidence must be needs_evidence=True."""
-    evidence_signals = {
-        Signal.RECENT_SECURITY_INCIDENT,
-        Signal.RECENT_LAYOFFS,
-        Signal.RECENT_FUNDING,
-        Signal.RECENT_LEADERSHIP_CHANGE,
-        Signal.JOB_STACK_LISTED,
-        Signal.SUBSIDIARY_OF,
-        Signal.M_A_FREQUENT_ACQUIRER,
-        Signal.M_A_RECENT,
-    }
+    """A template has format slots IFF it is needs_evidence=True.
+
+    Self-maintaining: any new template that adds a {slot} must set
+    needs_evidence=True, and vice versa — no hardcoded signal set to drift.
+    """
     for tmpl in TEMPLATES:
-        if any(s in evidence_signals for s in tmpl.signals):
-            assert tmpl.needs_evidence, f"{tmpl.id} should be needs_evidence=True"
+        has_slots = bool({fname for _, fname, _, _ in string.Formatter().parse(tmpl.text) if fname})
+        assert tmpl.needs_evidence == has_slots, (
+            f"{tmpl.id}: needs_evidence={tmpl.needs_evidence} but has_slots={has_slots}"
+        )
 
 
 def test_evidence_templates_use_only_safe_slots() -> None:
@@ -105,15 +101,6 @@ def test_evidence_templates_use_only_safe_slots() -> None:
         # crude slot extraction
         slots = {fname for _, fname, _, _ in string.Formatter().parse(tmpl.text) if fname}
         assert slots <= allowed, f"{tmpl.id} uses unexpected slots: {slots - allowed}"
-
-
-def test_non_evidence_templates_have_no_format_slots() -> None:
-    """Evidence-free templates are static text (no {slots} to render)."""
-    for tmpl in TEMPLATES:
-        if tmpl.needs_evidence:
-            continue
-        slots = {fname for _, fname, _, _ in string.Formatter().parse(tmpl.text) if fname}
-        assert not slots, f"{tmpl.id} has slots but is not needs_evidence: {slots}"
 
 
 def test_footprint_config_templates_demoted_to_low() -> None:
