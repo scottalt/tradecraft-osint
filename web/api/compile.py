@@ -29,6 +29,7 @@ sys.path.insert(0, str(_HERE / "_vendor"))
 # Now import tradecraft (must come AFTER sys.path mutation).
 from tradecraft.analyzers.heuristics import generate_questions  # noqa: E402
 from tradecraft.cache import Cache  # noqa: E402
+from tradecraft.collectors.business import BusinessCollector  # noqa: E402
 from tradecraft.collectors.company import CompanyCollector  # noqa: E402
 from tradecraft.collectors.footprint import FootprintCollector  # noqa: E402
 from tradecraft.collectors.github import GitHubCollector  # noqa: E402
@@ -49,6 +50,7 @@ HOSTED_COLLECTORS = [
     GitHubCollector(),
     NewsCollector(),
     MaCollector(),
+    BusinessCollector(),
 ]
 
 

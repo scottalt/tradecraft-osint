@@ -14,6 +14,7 @@ from tradecraft.collectors.base import CollectorContext
 from tradecraft.models import (
     CollectorError,
     CollectorResult,
+    Evidence,
     Role,
     Signal,
 )
@@ -42,14 +43,22 @@ class CompanyCollector:
     async def run(self, ctx: CollectorContext) -> CollectorResult:
         errors: list[CollectorError] = []
         signals: list[Signal] = []
+        evidence: list[Evidence] = []
         base = str(ctx.target.root_url).rstrip("/")
+        root_url = f"{base}/"
 
+        # Fetch the root homepage first (its meta description is usually the
+        # canonical "what we do" statement), then the standard sub-pages.
+        fetch_paths = ("", *_PATHS)
         results = await asyncio.gather(
-            *(self._safe(ctx.http.get(f"{base}{p}"), errors, p) for p in _PATHS)
+            *(
+                self._safe(ctx.http.get(f"{base}{p}" if p else root_url), errors, p or "home")
+                for p in fetch_paths
+            )
         )
 
         pages: list[dict[str, Any]] = []
-        for path, resp in zip(_PATHS, results, strict=True):
+        for path, resp in zip(fetch_paths, results, strict=True):
             if resp is None or resp.status_code != 200:
                 continue
             tree = HTMLParser(resp.text)
@@ -59,14 +68,39 @@ class CompanyCollector:
             body_text = tree.body.text(strip=True) if tree.body else ""
             pages.append(
                 {
-                    "path": path.strip("/"),
+                    "path": path.strip("/") or "home",
+                    "url": root_url if path == "" else f"{base}{path}",
                     "title": title_el.text(strip=True) if title_el else "",
-                    "description": description_el.attributes.get("content", "")
+                    "description": str(description_el.attributes.get("content", ""))
                     if description_el
                     else "",
                     "headings": headings,
                     "body_excerpt": body_text[:1000],
                 }
+            )
+
+        # BUSINESS_DESCRIPTION: prefer the homepage meta description, falling
+        # back to the first about-page description. Emit at most once, and cite
+        # the page the description actually came from.
+        home_page = next(
+            (p for p in pages if p["path"] == "home" and p["description"].strip()),
+            None,
+        )
+        about_page = next(
+            (p for p in pages if p["path"].startswith("about") and p["description"].strip()),
+            None,
+        )
+        source_page = home_page or about_page
+        if source_page is not None:
+            signals.append(Signal.BUSINESS_DESCRIPTION)
+            evidence.append(
+                Evidence(
+                    signal=Signal.BUSINESS_DESCRIPTION,
+                    summary=source_page["description"][:400],
+                    url=source_page["url"],
+                    date=None,
+                    source="company",
+                )
             )
 
         combined_text = " ".join(p["body_excerpt"] for p in pages)
@@ -90,6 +124,7 @@ class CompanyCollector:
             signals=signals,
             errors=errors,
             duration_ms=0,
+            evidence=evidence,
         )
 
     @staticmethod
