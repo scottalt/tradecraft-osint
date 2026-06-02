@@ -12,6 +12,7 @@ from tradecraft.collectors.base import CollectorContext
 from tradecraft.models import (
     CollectorError,
     CollectorResult,
+    Evidence,
     Role,
     Signal,
 )
@@ -68,10 +69,13 @@ class JobCollector:
 
     async def run(self, ctx: CollectorContext) -> CollectorResult:
         if ctx.target.job_url is None:
-            return CollectorResult(name=self.name, data={}, signals=[], errors=[], duration_ms=0)
+            return CollectorResult(
+                name=self.name, data={}, signals=[], errors=[], evidence=[], duration_ms=0
+            )
 
         errors: list[CollectorError] = []
         signals: list[Signal] = []
+        evidence: list[Evidence] = []
 
         try:
             resp = await ctx.http.get(str(ctx.target.job_url))
@@ -87,6 +91,7 @@ class JobCollector:
                         exception_type=exc.__class__.__name__,
                     )
                 ],
+                evidence=[],
                 duration_ms=0,
             )
 
@@ -99,12 +104,24 @@ class JobCollector:
                 )
             )
             return CollectorResult(
-                name=self.name, data={}, signals=signals, errors=errors, duration_ms=0
+                name=self.name, data={}, signals=signals, errors=errors, evidence=[], duration_ms=0
             )
 
         host = (urlparse(str(ctx.target.job_url)).hostname or "").lower()
         title, body = self._extract(host, resp.text)
         stack = self._extract_stack(body)
+
+        if stack:
+            signals.append(Signal.JOB_STACK_LISTED)
+            evidence.append(
+                Evidence(
+                    signal=Signal.JOB_STACK_LISTED,
+                    summary=", ".join(stack[:5]),
+                    url=str(ctx.target.job_url),
+                    date=None,
+                    source="job",
+                )
+            )
 
         return CollectorResult(
             name=self.name,
@@ -117,6 +134,7 @@ class JobCollector:
             },
             signals=signals,
             errors=errors,
+            evidence=evidence,
             duration_ms=0,
         )
 

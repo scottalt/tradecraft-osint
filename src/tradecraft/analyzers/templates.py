@@ -371,6 +371,18 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         confidence="med",
         source="job",
     ),
+    QuestionTemplate(
+        id="job.stack_listed",
+        signals=(Signal.JOB_STACK_LISTED,),
+        roles=frozenset({Role.CYBERSECURITY, Role.SWE, Role.DEVOPS}),
+        text=(
+            "The JD lists {stack}. "
+            "Where does the security team focus when that stack is involved — "
+            "supply-chain controls, secrets management, or runtime observability?"
+        ),
+        confidence="med",
+        source="job",
+    ),
     # ---- people (defensive + AppSec) ----
     QuestionTemplate(
         id="people.strong_brand.defensive",

@@ -32,6 +32,7 @@ class Signal(StrEnum):
     # job
     LANGUAGES_MISMATCH_JOB = "languages_mismatch_job"
     STACK_ALIGNMENT_STRONG = "stack_alignment_strong"
+    JOB_STACK_LISTED = "job_stack_listed"
     # news
     RECENT_LAYOFFS = "recent_layoffs"
     RECENT_FUNDING = "recent_funding"
