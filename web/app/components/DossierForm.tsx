@@ -69,12 +69,26 @@ export function DossierForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          root_url: rootUrl,
-          job_url: jobUrl || null,
-          company: company || null,
+          root_url: rootUrl.trim(),
+          job_url: jobUrl.trim() || null,
+          company: company.trim() || null,
         }),
       });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      if (!res.ok) {
+        // Surface the API's actual reason (e.g. unresolvable URL, rate limit)
+        // instead of a bare status code.
+        let message = `Server returned ${res.status}`;
+        try {
+          const err = await res.json();
+          if (err?.error) message = err.error;
+          if (err?.retry_after) {
+            message += ` Try again in ~${Math.ceil(err.retry_after / 60)} min.`;
+          }
+        } catch {
+          // non-JSON error body; keep the status-code message
+        }
+        throw new Error(message);
+      }
       const data = await res.json();
       setDossier(data);
       setState("done");

@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
+import re
 import socket
 import sys
 from http.server import BaseHTTPRequestHandler
@@ -52,6 +53,24 @@ HOSTED_COLLECTORS = [
     MaCollector(),
     BusinessCollector(),
 ]
+
+
+def _normalize_url(raw: object) -> str | None:
+    """Trim whitespace and add an https:// scheme if missing.
+
+    Users routinely paste a bare domain ("acme.com") or a value with a
+    trailing space from copy-paste. Both would otherwise fail the SSRF
+    check (no scheme / unresolvable host) and produce an opaque 400. We
+    normalize first; the result is still validated by _is_safe_public_url.
+    """
+    if not isinstance(raw, str):
+        return None
+    raw = raw.strip()
+    if not raw:
+        return None
+    if not re.match(r"^https?://", raw, re.IGNORECASE):
+        raw = "https://" + raw
+    return raw
 
 
 def _is_safe_public_url(raw_url: str) -> bool:
@@ -116,17 +135,36 @@ class handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("content-length", "0"))
             body = self.rfile.read(length) if length > 0 else b"{}"
             payload = json.loads(body.decode("utf-8"))
-            root_url = payload.get("root_url")
+            root_url = _normalize_url(payload.get("root_url"))
             if not root_url:
                 self._respond(400, {"error": "root_url required"})
                 return
+            payload["root_url"] = root_url
             if not _is_safe_public_url(root_url):
-                self._respond(400, {"error": "root_url must be http(s) and resolve to a public IP"})
+                self._respond(
+                    400,
+                    {
+                        "error": (
+                            "Couldn't resolve that root URL. Check the spelling and that "
+                            "it's a public website (e.g. https://acme.com)."
+                        )
+                    },
+                )
                 return
-            job_url = payload.get("job_url")
-            if job_url and not _is_safe_public_url(job_url):
-                self._respond(400, {"error": "job_url must be http(s) and resolve to a public IP"})
-                return
+            job_url = _normalize_url(payload.get("job_url"))
+            if job_url:
+                payload["job_url"] = job_url
+                if not _is_safe_public_url(job_url):
+                    self._respond(
+                        400,
+                        {
+                            "error": (
+                                "Couldn't resolve that job-listing URL. Check the link, or "
+                                "leave it blank."
+                            )
+                        },
+                    )
+                    return
             result = asyncio.run(_run(payload))
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
