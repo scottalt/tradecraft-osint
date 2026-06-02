@@ -143,22 +143,28 @@ export function DossierDisplay({ dossier }: { dossier: Dossier }) {
               {q.evidence ? (
                 <span className="block font-typewriter text-xs text-faded-ink mt-1 tracking-wider">
                   source:{" "}
-                  {q.evidence.url ? (
-                    <a
-                      href={q.evidence.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline text-stamp-blue underline-offset-2"
-                    >
-                      {q.evidence.source}
-                      {q.evidence.date ? ` · ${q.evidence.date}` : ""}
-                    </a>
-                  ) : (
-                    <span>
-                      {q.evidence.source}
-                      {q.evidence.date ? ` · ${q.evidence.date}` : ""}
-                    </span>
-                  )}
+                  {(() => {
+                    const safeUrl =
+                      q.evidence?.url && /^https?:\/\//i.test(q.evidence.url)
+                        ? q.evidence.url
+                        : null;
+                    return safeUrl ? (
+                      <a
+                        href={safeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline text-stamp-blue underline-offset-2"
+                      >
+                        {q.evidence!.source}
+                        {q.evidence!.date ? ` · ${q.evidence!.date}` : ""}
+                      </a>
+                    ) : (
+                      <span>
+                        {q.evidence!.source}
+                        {q.evidence!.date ? ` · ${q.evidence!.date}` : ""}
+                      </span>
+                    );
+                  })()}
                 </span>
               ) : null}
             </li>

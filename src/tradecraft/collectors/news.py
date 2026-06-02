@@ -145,9 +145,10 @@ class NewsCollector:
             try:
                 parsed = feedparser.parse(rss_text.text)
                 for entry in parsed.entries[:50]:
+                    raw_link = getattr(entry, "link", "") or ""
                     item: dict[str, Any] = {
                         "title": getattr(entry, "title", ""),
-                        "url": getattr(entry, "link", ""),
+                        "url": raw_link if re.match(r"^https?://", raw_link, re.IGNORECASE) else "",
                         "published": getattr(entry, "published", ""),
                         "published_parsed": getattr(entry, "published_parsed", None),
                         "source": "google_news",
@@ -167,9 +168,12 @@ class NewsCollector:
             try:
                 hits = hn_json.json().get("hits", [])
                 for h in hits[:50]:
+                    raw_hn_url = h.get("url", "") or ""
                     item = {
                         "title": h.get("title", ""),
-                        "url": h.get("url", ""),
+                        "url": raw_hn_url
+                        if re.match(r"^https?://", raw_hn_url, re.IGNORECASE)
+                        else "",
                         # "created_at" is the HN Algolia field name; used by _parse_date_iso
                         "created_at": h.get("created_at", ""),
                         "source": "hn",
@@ -204,11 +208,13 @@ class NewsCollector:
             undated = [i for i in matching if i.get("date_iso") is None]
             best = dated[0] if dated else undated[0]
             source_name = "news.google" if best.get("source") == "google_news" else "hn"
+            raw_url = best.get("url") or ""
+            safe_url = raw_url if re.match(r"^https?://", raw_url, re.IGNORECASE) else None
             evidence.append(
                 Evidence(
                     signal=sig,
                     summary=best.get("title", ""),
-                    url=best.get("url") or None,
+                    url=safe_url,
                     date=best.get("date_iso"),
                     source=source_name,
                 )

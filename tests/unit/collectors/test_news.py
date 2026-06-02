@@ -460,6 +460,70 @@ async def test_signal_does_not_fire_when_only_irrelevant_match(http) -> None:
 
 
 @respx.mock
+async def test_javascript_url_in_rss_item_yields_none_evidence_url(http) -> None:
+    """A news item with a javascript: link must NOT produce Evidence.url (XSS hardening)."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent = (today - timedelta(days=5)).strftime("%a, %d %b %Y 00:00:00 GMT")
+
+    rss = _make_rss_xml(
+        [
+            {
+                "title": "Acme Corp raises $50M Series C",
+                "link": "javascript:alert('xss')",
+                "pubDate": recent,
+            }
+        ]
+    )
+    respx.get("https://news.google.com/rss/search").mock(return_value=httpx.Response(200, text=rss))
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(200, json={"hits": []})
+    )
+    target = Target(company_name="Acme Corp", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_FUNDING in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_FUNDING), None)
+    assert ev is not None
+    assert ev.url is None, f"Expected url=None for javascript: link, got {ev.url!r}"
+
+
+@respx.mock
+async def test_data_url_in_hn_item_yields_none_evidence_url(http) -> None:
+    """A HN item with a data: link must NOT produce Evidence.url (XSS hardening)."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent_iso = (today - timedelta(days=3)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme announces layoffs",
+                        "url": "data:text/html,<script>alert(1)</script>",
+                        "created_at": recent_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_LAYOFFS in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_LAYOFFS), None)
+    assert ev is not None
+    assert ev.url is None, f"Expected url=None for data: link, got {ev.url!r}"
+
+
+@respx.mock
 async def test_evidence_iso_date_correct(http) -> None:
     """Evidence date field is correct ISO YYYY-MM-DD for both sources."""
     client, cache = http
