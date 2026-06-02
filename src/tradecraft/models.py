@@ -64,6 +64,14 @@ def _slugify(value: str) -> str:
     return _SLUG_RE.sub("-", value.lower()).strip("-")
 
 
+class Evidence(BaseModel):
+    signal: Signal
+    summary: str  # the real headline / press title / JD stack phrase
+    url: str | None = None
+    date: str | None = None  # ISO date string when known, e.g. "2026-03-11"
+    source: str  # e.g. "news.google", "hn", "company", "job", "wikipedia"
+
+
 class Target(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -84,6 +92,7 @@ class Question(BaseModel):
     evidence_signal: Signal | None = None
     source_collector: str
     is_starred: bool = False
+    evidence: Evidence | None = None
 
 
 class CollectorError(BaseModel):
@@ -98,6 +107,7 @@ class CollectorResult(BaseModel):
     signals: list[Signal] = Field(default_factory=list)
     errors: list[CollectorError] = Field(default_factory=list)
     duration_ms: int
+    evidence: list[Evidence] = Field(default_factory=list)
 
 
 class Findings(BaseModel):
@@ -111,3 +121,12 @@ class Findings(BaseModel):
 
     def collector(self, name: str) -> CollectorResult | None:
         return next((r for r in self.results if r.name == name), None)
+
+    def evidence_for(self, signal: Signal) -> Evidence | None:
+        matches = [e for r in self.results for e in r.evidence if e.signal == signal]
+        if not matches:
+            return None
+        dated = [e for e in matches if e.date is not None]
+        if dated:
+            return max(dated, key=lambda e: e.date)  # type: ignore[arg-type]
+        return matches[0]

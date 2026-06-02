@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from tradecraft.models import (
     CollectorError,
     CollectorResult,
+    Evidence,
     Findings,
     Question,
     Role,
@@ -101,3 +102,161 @@ class TestFindings:
         assert Signal.MISSING_CSP in f.all_signals
         assert f.collector("footprint") is r1
         assert f.collector("nope") is None
+
+
+class TestEvidence:
+    def test_evidence_required_and_optional_fields(self) -> None:
+        e = Evidence(
+            signal=Signal.RECENT_FUNDING,
+            summary="Acme raises $50M Series B",
+            source="news.google",
+        )
+        assert e.signal == Signal.RECENT_FUNDING
+        assert e.summary == "Acme raises $50M Series B"
+        assert e.source == "news.google"
+        assert e.url is None
+        assert e.date is None
+
+    def test_evidence_with_all_fields(self) -> None:
+        e = Evidence(
+            signal=Signal.M_A_RECENT,
+            summary="Acme acquires WidgetCo",
+            url="https://techcrunch.com/acme-widgetco",
+            date="2026-03-11",
+            source="news.google",
+        )
+        assert e.url == "https://techcrunch.com/acme-widgetco"
+        assert e.date == "2026-03-11"
+
+
+class TestCollectorResultEvidence:
+    def test_default_evidence_is_empty_list(self) -> None:
+        r = CollectorResult(name="news", data={}, signals=[], errors=[], duration_ms=5)
+        assert r.evidence == []
+
+    def test_evidence_field_accepts_evidence_objects(self) -> None:
+        e = Evidence(signal=Signal.RECENT_FUNDING, summary="Series B", source="news.google")
+        r = CollectorResult(
+            name="news",
+            data={},
+            signals=[Signal.RECENT_FUNDING],
+            errors=[],
+            duration_ms=5,
+            evidence=[e],
+        )
+        assert len(r.evidence) == 1
+        assert r.evidence[0].signal == Signal.RECENT_FUNDING
+
+
+class TestQuestionEvidence:
+    def test_question_evidence_field_defaults_none(self) -> None:
+        q = Question(
+            text="Why?",
+            confidence="high",
+            role_tags={Role.CYBERSECURITY},
+            evidence_signal=Signal.MISSING_CSP,
+            source_collector="footprint",
+        )
+        assert q.evidence is None
+
+    def test_question_evidence_field_accepts_evidence(self) -> None:
+        e = Evidence(signal=Signal.MISSING_CSP, summary="No CSP header found", source="footprint")
+        q = Question(
+            text="Why no CSP?",
+            confidence="high",
+            role_tags={Role.CYBERSECURITY},
+            evidence_signal=Signal.MISSING_CSP,
+            source_collector="footprint",
+            evidence=e,
+        )
+        assert q.evidence is not None
+        assert q.evidence.signal == Signal.MISSING_CSP
+
+
+class TestFindingsEvidenceFor:
+    def _target(self) -> Target:
+        return Target(company_name="Acme", root_url="https://acme.com")
+
+    def test_returns_none_when_no_evidence(self) -> None:
+        r = CollectorResult(name="news", data={}, signals=[], errors=[], duration_ms=5)
+        f = Findings(target=self._target(), results=[r])
+        assert f.evidence_for(Signal.RECENT_FUNDING) is None
+
+    def test_returns_none_when_no_matching_signal(self) -> None:
+        e = Evidence(signal=Signal.RECENT_LAYOFFS, summary="Layoffs at Acme", source="news.google")
+        r = CollectorResult(
+            name="news",
+            data={},
+            signals=[Signal.RECENT_LAYOFFS],
+            errors=[],
+            duration_ms=5,
+            evidence=[e],
+        )
+        f = Findings(target=self._target(), results=[r])
+        assert f.evidence_for(Signal.RECENT_FUNDING) is None
+
+    def test_returns_single_match(self) -> None:
+        e = Evidence(signal=Signal.RECENT_FUNDING, summary="Acme raises $50M", source="news.google")
+        r = CollectorResult(
+            name="news",
+            data={},
+            signals=[Signal.RECENT_FUNDING],
+            errors=[],
+            duration_ms=5,
+            evidence=[e],
+        )
+        f = Findings(target=self._target(), results=[r])
+        result = f.evidence_for(Signal.RECENT_FUNDING)
+        assert result is e
+
+    def test_returns_most_recent_by_iso_date(self) -> None:
+        e_old = Evidence(
+            signal=Signal.RECENT_FUNDING,
+            summary="Old funding",
+            source="news.google",
+            date="2025-01-01",
+        )
+        e_new = Evidence(
+            signal=Signal.RECENT_FUNDING,
+            summary="New funding",
+            source="news.google",
+            date="2026-03-11",
+        )
+        r1 = CollectorResult(
+            name="news1", data={}, signals=[], errors=[], duration_ms=5, evidence=[e_old]
+        )
+        r2 = CollectorResult(
+            name="news2", data={}, signals=[], errors=[], duration_ms=5, evidence=[e_new]
+        )
+        f = Findings(target=self._target(), results=[r1, r2])
+        assert f.evidence_for(Signal.RECENT_FUNDING) is e_new
+
+    def test_prefers_dated_over_undated(self) -> None:
+        e_undated = Evidence(
+            signal=Signal.RECENT_FUNDING, summary="Undated funding", source="company"
+        )
+        e_dated = Evidence(
+            signal=Signal.RECENT_FUNDING,
+            summary="Dated funding",
+            source="news.google",
+            date="2026-01-01",
+        )
+        r = CollectorResult(
+            name="news",
+            data={},
+            signals=[],
+            errors=[],
+            duration_ms=5,
+            evidence=[e_undated, e_dated],
+        )
+        f = Findings(target=self._target(), results=[r])
+        assert f.evidence_for(Signal.RECENT_FUNDING) is e_dated
+
+    def test_falls_back_to_first_match_when_all_undated(self) -> None:
+        e1 = Evidence(signal=Signal.RECENT_FUNDING, summary="First match", source="company")
+        e2 = Evidence(signal=Signal.RECENT_FUNDING, summary="Second match", source="hn")
+        r = CollectorResult(
+            name="news", data={}, signals=[], errors=[], duration_ms=5, evidence=[e1, e2]
+        )
+        f = Findings(target=self._target(), results=[r])
+        assert f.evidence_for(Signal.RECENT_FUNDING) is e1
