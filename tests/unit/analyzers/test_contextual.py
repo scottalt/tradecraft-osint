@@ -276,3 +276,37 @@ def test_jobstack_falls_back_to_summary_when_no_data_stack() -> None:
 def test_no_jobstack_evidence_yields_no_jobstack_questions() -> None:
     qs = contextual_questions(_findings(evidence=[]))
     assert qs == []
+
+
+# ---- investment / asset-management sector + fallback phrasing ----
+
+
+def test_private_equity_description_matches_investment_profile() -> None:
+    desc = (
+        "H.I.G. Capital is a leading global alternative investment firm. "
+        "The firm was founded in 1993 and is headquartered in Miami."
+    )
+    qs = contextual_questions(_findings(evidence=[_desc_ev(desc)]))
+    texts = [q.text for q in qs]
+    assert any("investment & asset management" in t for t in texts)
+    assert any("business-email-compromise" in t for t in texts)
+    # Must NOT fall through to the generic "You operate in <sentence>" fallback.
+    assert not any(t.startswith("You operate in H.I.G.") for t in texts)
+
+
+def test_generic_fallback_quotes_description_not_jammed_into_sentence() -> None:
+    desc = "Acme makes hand-poured artisanal candles for boutique retailers."
+    qs = contextual_questions(_findings(evidence=[_desc_ev(desc)]))
+    assert len(qs) == 1
+    text = qs[0].text
+    # The grammatical-break bug: a full sentence after "You operate in".
+    assert "You operate in Acme makes" not in text
+    assert text.startswith("Your public profile describes the company as")
+    assert desc in text
+
+
+def test_generic_fallback_with_industry_label_uses_you_operate_in() -> None:
+    # A clean Wikipedia industry label still reads naturally.
+    qs = contextual_questions(_findings(evidence=[_industry_ev("Floristry")]))
+    assert len(qs) == 1
+    assert qs[0].text.startswith("You operate in Floristry —")

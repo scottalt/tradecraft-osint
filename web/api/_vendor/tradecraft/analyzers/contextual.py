@@ -65,6 +65,31 @@ _INDUSTRY_PROFILES: tuple[IndustryProfile, ...] = (
         generic="real-time transaction integrity, regulatory constraints, and fraud at scale",
     ),
     IndustryProfile(
+        label="investment & asset management",
+        keywords=frozenset(
+            {
+                "investment",
+                "private equity",
+                "venture capital",
+                "asset management",
+                "asset manager",
+                "hedge fund",
+                "wealth management",
+                "alternative investment",
+                "private capital",
+                "portfolio company",
+            }
+        ),
+        cyber=(
+            "wire-fraud and business-email-compromise defense, protecting LP and deal data, "
+            "and security due-diligence across portfolio companies"
+        ),
+        generic=(
+            "confidentiality of LP and deal data, portfolio-company integration, "
+            "and regulatory reporting"
+        ),
+    ),
+    IndustryProfile(
         label="healthcare & life sciences",
         keywords=frozenset(
             {
@@ -323,6 +348,14 @@ def _classification(findings: Findings) -> tuple[str, Evidence] | None:
     return text, cite_ev
 
 
+def _shorten(text: str, limit: int) -> str:
+    """Trim to a word boundary within ``limit`` chars, adding an ellipsis if cut."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0] + "…"
+
+
 def _industry_questions(findings: Findings) -> list[Question]:
     role = findings.target.role
     is_cyber = role == Role.CYBERSECURITY
@@ -363,24 +396,36 @@ def _industry_questions(findings: Findings) -> list[Question]:
         return questions
 
     # Industry/description text exists but no profile matched -> one generic fallback.
-    # Prefer the INDUSTRY_IDENTIFIED summary, else the (longest) description.
-    if cite_ev.signal == Signal.INDUSTRY_IDENTIFIED or len(cite_ev.summary) <= 100:
-        industry_or_desc_short = cite_ev.summary
+    # A clean industry label (from the Wikipedia infobox) reads naturally after
+    # "You operate in"; a free-text description (often a full sentence) does not,
+    # so we quote it instead of producing "You operate in <sentence>".
+    if cite_ev.signal == Signal.INDUSTRY_IDENTIFIED:
+        label = _shorten(cite_ev.summary, 80)
+        if is_cyber:
+            q_text = (
+                f"You operate in {label} — which security threats are most specific to "
+                "that sector, and how does that shape the team's priorities versus a "
+                "generic security program?"
+            )
+        else:
+            q_text = (
+                f"You operate in {label} — what engineering challenges are most specific "
+                "to that sector, and how do they shape this team's roadmap?"
+            )
     else:
-        # Truncate on a word boundary so the question never cuts mid-word.
-        industry_or_desc_short = cite_ev.summary[:100].rsplit(" ", 1)[0] + "…"
-
-    if is_cyber:
-        q_text = (
-            f"You operate in {industry_or_desc_short} — which security threats are most "
-            "specific to that sector, and how does that shape the team's priorities "
-            "versus a generic security program?"
-        )
-    else:
-        q_text = (
-            f"You operate in {industry_or_desc_short} — what engineering challenges are most "
-            "specific to that sector, and how do they shape this team's roadmap?"
-        )
+        desc = _shorten(cite_ev.summary, 140)
+        if is_cyber:
+            q_text = (
+                f"Your public profile describes the company as “{desc}” — which security "
+                "threats are most specific to that space, and how does that shape the "
+                "team's priorities versus a generic security program?"
+            )
+        else:
+            q_text = (
+                f"Your public profile describes the company as “{desc}” — what engineering "
+                "challenges are most specific to that space, and how do they shape this "
+                "team's roadmap?"
+            )
     questions.append(
         Question(
             text=q_text,
