@@ -56,12 +56,14 @@ def test_full_run_produces_real_dossier(tmp_path: Path, fixtures_dir: Path) -> N
     # report covers the spine
     assert "# E2E Test Inc" in report
     assert "staging.e2e.test" in report
-    # heuristics fired
-    assert "Content-Security-Policy" in report
+    # footprint signals still surface in the recon section (as recon, not questions)
+    assert "`missing_csp`" in report
     assert "pre-prod" in report.lower() or "staging" in report.lower()
     # questions standalone
     assert "Questions to ask E2E Test Inc" in questions_md
     # json schema and roundtrip
     assert raw["schema_version"] == 1
     assert raw["target"]["company_name"] == "E2E Test Inc"
-    assert any(q["evidence_signal"] == "missing_csp" for q in raw["questions"])
+    # footprint signals are recon-only now — no security-header questions generated
+    assert all("Content-Security-Policy" not in q["text"] for q in raw["questions"])
+    assert all(q["evidence_signal"] != "missing_csp" for q in raw["questions"])

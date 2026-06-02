@@ -35,72 +35,6 @@ _ALL_TECH_ROLES = frozenset(
 
 TEMPLATES: tuple[QuestionTemplate, ...] = (
     QuestionTemplate(
-        id="footprint.missing_csp",
-        signals=(Signal.MISSING_CSP,),
-        roles=frozenset({Role.CYBERSECURITY, Role.SWE}),
-        text=(
-            "Your main site doesn't ship a Content-Security-Policy header. "
-            "Is that a deliberate posture, or is the team working toward one?"
-        ),
-        confidence="low",
-        source="footprint",
-    ),
-    QuestionTemplate(
-        id="footprint.missing_hsts",
-        signals=(Signal.MISSING_HSTS,),
-        roles=frozenset({Role.CYBERSECURITY, Role.DEVOPS}),
-        text=(
-            "I noticed your apex doesn't return Strict-Transport-Security. "
-            "How does the team think about transport hardening across subdomains?"
-        ),
-        confidence="low",
-        source="footprint",
-    ),
-    QuestionTemplate(
-        id="footprint.open_staging",
-        signals=(Signal.OPEN_STAGING_SUBDOMAIN,),
-        roles=frozenset({Role.CYBERSECURITY, Role.DEVOPS}),
-        text=(
-            "I saw pre-prod hostnames in public certificate transparency logs. "
-            "Does the team have a stance on hiding or hardening pre-prod surface area?"
-        ),
-        confidence="low",
-        source="footprint",
-    ),
-    QuestionTemplate(
-        id="footprint.cert_expiring",
-        signals=(Signal.CERT_EXPIRING_SOON,),
-        roles=frozenset({Role.CYBERSECURITY, Role.DEVOPS}),
-        text=(
-            "Your apex TLS certificate expires soon. Is rotation automated end-to-end, "
-            "or is there a manual step in the rollout?"
-        ),
-        confidence="low",
-        source="footprint",
-    ),
-    QuestionTemplate(
-        id="footprint.exposed_admin",
-        signals=(Signal.EXPOSED_ADMIN_PATH,),
-        roles=frozenset({Role.CYBERSECURITY}),
-        text=(
-            "robots.txt or sitemap.xml references admin paths. "
-            "How does the team approach reducing the discoverable attack surface?"
-        ),
-        confidence="low",
-        source="footprint",
-    ),
-    QuestionTemplate(
-        id="company.recent_press",
-        signals=(Signal.RECENT_PRESS_RELEASE,),
-        roles=frozenset(_ALL_TECH_ROLES | {Role.GENERIC}),
-        text=(
-            "I saw your recent announcement. How is that landing internally, "
-            "and how does it shape what this team will prioritize next quarter?"
-        ),
-        confidence="med",
-        source="company",
-    ),
-    QuestionTemplate(
         id="company.founder_technical",
         signals=(Signal.FOUNDER_TECHNICAL,),
         roles=_ALL_TECH_ROLES,
@@ -327,17 +261,6 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
     ),
     # ---- company (AppSec + GRC) ----
     QuestionTemplate(
-        id="company.recent_press.cyber_specific",
-        signals=(Signal.RECENT_PRESS_RELEASE,),
-        roles=frozenset({Role.CYBERSECURITY}),
-        text=(
-            "I saw the recent announcement. What does that mean for the security team's "
-            "near-term roadmap — new product surface, integrations, or compliance work?"
-        ),
-        confidence="med",
-        source="company",
-    ),
-    QuestionTemplate(
         id="company.founder_technical.cyber_specific",
         signals=(Signal.FOUNDER_TECHNICAL,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
@@ -383,19 +306,6 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         ),
         confidence="med",
         source="job",
-    ),
-    QuestionTemplate(
-        id="job.stack_listed",
-        signals=(Signal.JOB_STACK_LISTED,),
-        roles=frozenset({Role.CYBERSECURITY, Role.SWE, Role.DEVOPS}),
-        text=(
-            "The job description emphasizes {summary}. "
-            "Where is the team feeling that stack strain most at scale — "
-            "supply-chain controls, secrets management, or runtime observability?"
-        ),
-        confidence="med",
-        source="job",
-        needs_evidence=True,
     ),
     # ---- people (defensive + AppSec) ----
     QuestionTemplate(
@@ -443,18 +353,6 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "what constitutes a material incident?"
         ),
         confidence="med",
-        source="business",
-    ),
-    QuestionTemplate(
-        id="business.wikipedia",
-        signals=(Signal.WIKIPEDIA_INFOBOX_PRESENT,),
-        roles=frozenset({Role.CYBERSECURITY, Role.GENERIC}),
-        text=(
-            "Your Wikipedia page covers history and product lines. "
-            "How does the security org map onto the historical business — "
-            "centralized, federated by business unit, or matrixed?"
-        ),
-        confidence="low",
         source="business",
     ),
     QuestionTemplate(
@@ -537,30 +435,5 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         confidence="low",
         source="ma",
         needs_evidence=True,
-    ),
-    # ---- additional offensive templates against existing footprint signals ----
-    QuestionTemplate(
-        id="footprint.missing_csp.offensive",
-        signals=(Signal.MISSING_CSP,),
-        roles=frozenset({Role.CYBERSECURITY}),
-        text=(
-            "No CSP on the apex. "
-            "In a recent external assessment, would that have shown up as a finding, "
-            "and what's the team's appetite for CSP rollout pain?"
-        ),
-        confidence="low",
-        source="footprint",
-    ),
-    QuestionTemplate(
-        id="footprint.open_staging.grc",
-        signals=(Signal.OPEN_STAGING_SUBDOMAIN,),
-        roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
-        text=(
-            "Pre-prod hostnames in public CT logs. "
-            "Does your attack-surface management program — internal or vendor-driven — "
-            "audit the CT feed continuously?"
-        ),
-        confidence="low",
-        source="footprint",
     ),
 )

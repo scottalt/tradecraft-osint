@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from tradecraft.analyzers.contextual import contextual_questions
 from tradecraft.analyzers.templates import TEMPLATES, QuestionTemplate
 from tradecraft.models import Findings, Question
 
@@ -72,6 +73,15 @@ def generate_questions(
                 evidence=ev,
             )
         )
+    # Append evidence-backed contextual questions (industry + JD-tech), deduping
+    # against template-driven questions by exact text.
+    seen_texts = {q.text for q in fired}
+    for cq in contextual_questions(findings):
+        if cq.text in seen_texts:
+            continue
+        seen_texts.add(cq.text)
+        fired.append(cq)
+
     fired.sort(key=lambda q: (0 if q.evidence is not None else 1, _CONFIDENCE_ORDER[q.confidence]))
     for q in fired[:star_top_n]:
         q.is_starred = True

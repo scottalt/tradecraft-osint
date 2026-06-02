@@ -21,6 +21,7 @@ def fixtures(fixtures_dir: Path) -> dict[str, str]:
     return {
         "about": (fixtures_dir / "company" / "acme_about.html").read_text(),
         "team": (fixtures_dir / "company" / "acme_team.html").read_text(),
+        "home": (fixtures_dir / "company" / "acme_home.html").read_text(),
     }
 
 
@@ -42,6 +43,7 @@ async def test_extracts_signals(http, fixtures) -> None:
     client, cache = http
     # robots.txt is required by target-scoped enforcement
     respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    respx.get("https://acme.com/").mock(return_value=httpx.Response(200, text=fixtures["home"]))
     respx.get("https://acme.com/about").mock(
         return_value=httpx.Response(200, text=fixtures["about"])
     )
@@ -55,7 +57,40 @@ async def test_extracts_signals(http, fixtures) -> None:
 
     assert Signal.FOUNDER_TECHNICAL in result.signals  # "CTO, ... Stanford"
     assert "about" in {p["path"] for p in result.data["pages"]}
+    assert "home" in {p["path"] for p in result.data["pages"]}
     assert any("Acme Cloud" in str(p) for p in result.data["pages"])
+
+    # Homepage meta description -> BUSINESS_DESCRIPTION evidence, source/url set.
+    assert Signal.BUSINESS_DESCRIPTION in result.signals
+    desc_ev = next(e for e in result.evidence if e.signal == Signal.BUSINESS_DESCRIPTION)
+    assert "cloud security platform" in desc_ev.summary
+    assert desc_ev.source == "company"
+    assert desc_ev.url == "https://acme.com/"
+
+
+@respx.mock
+async def test_about_page_fallback_cites_about_url(http) -> None:
+    """Homepage has no meta description; about-page does -> evidence cites about URL."""
+    client, cache = http
+    respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    home_no_desc = "<html><head><title>Acme</title></head><body><h1>Acme</h1></body></html>"
+    about_with_desc = (
+        "<html><head><title>About</title>"
+        '<meta name="description" content="Acme is a cloud security platform for teams.">'
+        "</head><body><h1>About Acme</h1></body></html>"
+    )
+    respx.get("https://acme.com/").mock(return_value=httpx.Response(200, text=home_no_desc))
+    respx.get("https://acme.com/about").mock(return_value=httpx.Response(200, text=about_with_desc))
+    respx.get("").mock(return_value=httpx.Response(404))
+
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await CompanyCollector().run(ctx)
+
+    assert Signal.BUSINESS_DESCRIPTION in result.signals
+    desc_ev = next(e for e in result.evidence if e.signal == Signal.BUSINESS_DESCRIPTION)
+    assert "cloud security platform" in desc_ev.summary
+    assert desc_ev.url == "https://acme.com/about"
 
 
 @respx.mock
@@ -69,3 +104,5 @@ async def test_no_pages_emits_product_empty(http) -> None:
     result = await CompanyCollector().run(ctx)
 
     assert Signal.PRODUCT_LIST_EMPTY in result.signals
+    assert Signal.BUSINESS_DESCRIPTION not in result.signals
+    assert not result.evidence
