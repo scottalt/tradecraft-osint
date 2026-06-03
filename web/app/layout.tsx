@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { BootIntro } from "./components/fx/BootIntro";
+import { IntelField } from "./components/fx/IntelField";
 
 export const metadata: Metadata = {
   title: "tradecraft — field dossier",
@@ -20,7 +22,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <IntelField />
+        {children}
+        <BootIntro />
+      </body>
     </html>
   );
 }
