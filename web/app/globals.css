@@ -56,3 +56,330 @@ h1, h2, h3 {
   letter-spacing: 0.15em;
   transform: rotate(-2deg);
 }
+
+/* ───────────────────────── Cinematic hero ───────────────────────── */
+
+.hero-frame {
+  background:
+    radial-gradient(120% 90% at 80% 0%, rgba(26, 58, 92, 0.06), transparent 60%),
+    radial-gradient(90% 80% at 0% 100%, rgba(184, 35, 26, 0.05), transparent 55%);
+  box-shadow:
+    6px 6px 0 0 rgba(26, 22, 18, 0.12),
+    inset 0 0 60px rgba(26, 22, 18, 0.04);
+}
+
+/* Slow radar sweep: a rotating conic wedge, masked to a soft circle. */
+.hero-radar {
+  position: absolute;
+  top: 50%;
+  right: -10%;
+  width: 70vmin;
+  height: 70vmin;
+  transform: translateY(-50%);
+  pointer-events: none;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(26, 58, 92, 0.16) 0deg,
+    rgba(26, 58, 92, 0.02) 26deg,
+    transparent 60deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(circle, #000 0%, #000 58%, transparent 70%);
+  mask: radial-gradient(circle, #000 0%, #000 58%, transparent 70%);
+  animation: radar-spin 9s linear infinite;
+  opacity: 0.7;
+}
+
+@keyframes radar-spin {
+  to {
+    transform: translateY(-50%) rotate(360deg);
+  }
+}
+
+/* Horizontal scanlines + a single sweeping bright line. */
+.hero-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(26, 22, 18, 0.05) 0px,
+    rgba(26, 22, 18, 0.05) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  opacity: 0.5;
+  mix-blend-mode: multiply;
+}
+
+.hero-scan::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(184, 35, 26, 0.05),
+    transparent
+  );
+  animation: scan-down 6s ease-in-out infinite;
+}
+
+@keyframes scan-down {
+  0% {
+    top: -20%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    top: 110%;
+    opacity: 0;
+  }
+}
+
+/* Blinking block cursor for the typewriter. */
+.tw-cursor {
+  display: inline-block;
+  margin-left: 0.04em;
+  color: var(--color-stamp-red);
+  animation: cursor-blink 1s steps(1) infinite;
+}
+
+@keyframes cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Pulsing "live" status dot. */
+.hero-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-stamp-red);
+  box-shadow: 0 0 0 0 rgba(184, 35, 26, 0.5);
+  animation: dot-pulse 1.8s ease-out infinite;
+}
+
+@keyframes dot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(184, 35, 26, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(184, 35, 26, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(184, 35, 26, 0);
+  }
+}
+
+/* The big DECLASSIFIED stamp — heavier, distressed ink look. */
+.declassified-stamp {
+  font-family: var(--font-typewriter);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 1.05rem;
+  color: var(--color-stamp-red);
+  border: 3px solid var(--color-stamp-red);
+  padding: 0.3em 0.9em;
+  display: inline-block;
+  border-radius: 3px;
+  opacity: 0.88;
+  box-shadow: inset 0 0 0 1px rgba(184, 35, 26, 0.35);
+}
+
+/* ───────────────── Collection console (compile sequence) ───────────────── */
+
+.console-panel {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid var(--color-ink);
+  border-radius: 4px;
+  background: #161310;
+  color: #8fce75; /* phosphor green */
+  font-family: var(--font-data);
+  box-shadow:
+    4px 4px 0 0 rgba(26, 22, 18, 0.18),
+    inset 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+.console-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.04) 0px,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.console-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.5em 0.9em;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: #d8c08a;
+  border-bottom: 1px solid rgba(143, 206, 117, 0.25);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.console-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e8533f;
+  box-shadow: 0 0 8px 1px rgba(232, 83, 63, 0.8);
+  animation: led-blink 1.4s steps(1) infinite;
+}
+
+@keyframes led-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.console-body {
+  padding: 0.7em 0.9em 0.9em;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.console-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  white-space: nowrap;
+}
+
+.console-glyph {
+  width: 1.1em;
+  text-align: center;
+  flex: none;
+}
+
+.console-label {
+  flex: none;
+}
+
+.console-dots {
+  flex: 1 1 auto;
+  border-bottom: 1px dotted rgba(143, 206, 117, 0.3);
+  margin: 0 0.2em;
+  transform: translateY(-3px);
+}
+
+.console-detail {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+}
+
+.console-queued {
+  color: rgba(143, 206, 117, 0.4);
+}
+
+.console-run {
+  color: #e0a83c; /* amber */
+}
+
+.console-run .console-detail {
+  animation: led-blink 0.8s steps(1) infinite;
+}
+
+.console-done {
+  color: #8fce75;
+}
+
+.console-cursor {
+  color: #d8c08a;
+  margin-top: 0.2em;
+}
+
+.console-blink {
+  animation: cursor-blink 1s steps(1) infinite;
+}
+
+/* ───────────────── Redaction reveal (declassify questions) ───────────────── */
+
+.redaction-wrap {
+  position: relative;
+}
+
+.redaction-cover {
+  position: absolute;
+  inset: -2px -5px;
+  background: var(--color-ink);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Staggered entrance for content below the hero. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Animated underline-draw on the compile button + links on hover. */
+.compile-cta {
+  position: relative;
+  overflow: hidden;
+}
+
+.compile-cta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(244, 234, 214, 0.18) 50%,
+    transparent 70%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.6s ease;
+}
+
+.compile-cta:hover::after {
+  transform: translateX(130%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-radar,
+  .hero-scan::after,
+  .tw-cursor,
+  .hero-dot,
+  .console-led,
+  .console-blink,
+  .console-run .console-detail,
+  .rise {
+    animation: none !important;
+  }
+  .compile-cta::after {
+    display: none;
+  }
+}

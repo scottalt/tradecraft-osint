@@ -1,5 +1,6 @@
 import { SectionHeader } from "./SectionHeader";
 import { DataTable } from "./DataTable";
+import { RedactionReveal } from "./RedactionReveal";
 
 type Dossier = {
   target: { company_name: string; root_url: string; job_url?: string | null };
@@ -136,10 +137,11 @@ export function DossierDisplay({ dossier }: { dossier: Dossier }) {
         <ol className="space-y-4 font-prose list-decimal pl-6">
           {dossier.questions.map((q, i) => (
             <li key={i} className="text-ink">
-              <span className={q.is_starred ? "font-semibold" : ""}>{q.text}</span>
-              <span className="block font-typewriter text-xs uppercase text-faded-ink mt-1 tracking-wider">
-                · {q.confidence} · {q.source_collector}
-              </span>
+              <RedactionReveal index={i}>
+                <span className={q.is_starred ? "font-semibold" : ""}>{q.text}</span>
+                <span className="block font-typewriter text-xs uppercase text-faded-ink mt-1 tracking-wider">
+                  · {q.confidence} · {q.source_collector}
+                </span>
               {q.evidence ? (
                 <span className="block font-typewriter text-xs text-faded-ink mt-1 tracking-wider">
                   source:{" "}
@@ -166,7 +168,8 @@ export function DossierDisplay({ dossier }: { dossier: Dossier }) {
                     );
                   })()}
                 </span>
-              ) : null}
+                ) : null}
+              </RedactionReveal>
             </li>
           ))}
         </ol>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AiKeyDialog } from "./AiKeyDialog";
 import { ClassifiedStamp } from "./ClassifiedStamp";
+import { CompileSequence } from "./CompileSequence";
 import { DossierDisplay } from "./DossierDisplay";
 
 type FormState = "idle" | "running" | "done" | "error";
@@ -145,13 +146,14 @@ export function DossierForm() {
           <button
             type="submit"
             disabled={state === "running"}
-            className="font-typewriter uppercase tracking-widest text-lg px-8 py-3 bg-ink text-paper hover:bg-stamp-red transition-colors disabled:bg-faded-ink"
+            className="compile-cta font-typewriter uppercase tracking-widest text-lg px-8 py-3 bg-ink text-paper hover:bg-stamp-red transition-colors disabled:bg-faded-ink"
           >
             {state === "running" ? "Compiling …" : "Compile Dossier"}
           </button>
           {state === "running" && <ClassifiedStamp label="IN PROGRESS" rotation={2} variant="blue" />}
         </div>
       </form>
+      {state === "running" && <CompileSequence />}
       {error && (
         <p className="mt-6 font-typewriter text-stamp-red text-sm">ERROR: {error}</p>
       )}
