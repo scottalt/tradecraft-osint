@@ -25,6 +25,7 @@ export default function RootLayout({
       <body>
         <IntelField />
         {children}
+        <div className="page-vignette" aria-hidden />
         <BootIntro />
       </body>
     </html>

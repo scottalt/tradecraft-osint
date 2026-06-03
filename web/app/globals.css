@@ -57,6 +57,20 @@ h1, h2, h3 {
   transform: rotate(-2deg);
 }
 
+/* Cinematic edge vignette over the whole page (very subtle). */
+.page-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: radial-gradient(
+    125% 105% at 50% 28%,
+    transparent 52%,
+    rgba(26, 22, 18, 0.12) 100%
+  );
+  mix-blend-mode: multiply;
+}
+
 /* ───────────────────── Live intel-field background ───────────────────── */
 
 .intel-field {
