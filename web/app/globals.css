@@ -328,6 +328,46 @@ h1, h2, h3 {
   pointer-events: none;
 }
 
+/* Staggered entrance for content below the hero. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Animated underline-draw on the compile button + links on hover. */
+.compile-cta {
+  position: relative;
+  overflow: hidden;
+}
+
+.compile-cta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(244, 234, 214, 0.18) 50%,
+    transparent 70%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.6s ease;
+}
+
+.compile-cta:hover::after {
+  transform: translateX(130%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-radar,
   .hero-scan::after,
@@ -335,7 +375,11 @@ h1, h2, h3 {
   .hero-dot,
   .console-led,
   .console-blink,
-  .console-run .console-detail {
+  .console-run .console-detail,
+  .rise {
     animation: none !important;
+  }
+  .compile-cta::after {
+    display: none;
   }
 }

@@ -146,7 +146,7 @@ export function DossierForm() {
           <button
             type="submit"
             disabled={state === "running"}
-            className="font-typewriter uppercase tracking-widest text-lg px-8 py-3 bg-ink text-paper hover:bg-stamp-red transition-colors disabled:bg-faded-ink"
+            className="compile-cta font-typewriter uppercase tracking-widest text-lg px-8 py-3 bg-ink text-paper hover:bg-stamp-red transition-colors disabled:bg-faded-ink"
           >
             {state === "running" ? "Compiling …" : "Compile Dossier"}
           </button>

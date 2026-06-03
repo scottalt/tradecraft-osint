@@ -6,26 +6,32 @@ export default function HomePage() {
     <main className="max-w-4xl mx-auto px-6 py-10">
       <IntelHero />
 
-      <section className="mb-10 font-prose text-ink leading-relaxed max-w-3xl">
+      <section
+        className="rise mb-10 font-prose text-ink leading-relaxed max-w-3xl"
+        style={{ animationDelay: "220ms" }}
+      >
         <p>
-          Submit a target organization below. The service will run a small set of public
-          reconnaissance routines and return a field dossier — DNS posture, subdomain
-          exposure, GitHub footprint, job description, and a starter set of interview
-          questions evidence-cited to the findings.
+          Submit a target organization below. The service runs public-source
+          reconnaissance and returns a field dossier — the company&apos;s industry and
+          what it actually does, recent news and M&amp;A, GitHub footprint, the job&apos;s
+          tech stack — then a set of <em>interview questions worth asking</em>, each cited
+          to the evidence that prompted it.
         </p>
         <p className="mt-4">
-          For the full collector roster (news, breaches, M&amp;A, people, business), use{" "}
+          For breaches, deeper people analysis, and optional bring-your-own-key AI, use{" "}
           <a
             href="https://github.com/scottalt/tradecraft-osint"
             className="underline decoration-stamp-red underline-offset-4"
           >
             the local CLI
           </a>
-          . This hosted preview is deliberately narrow.
+          . Targets are not stored.
         </p>
       </section>
 
-      <DossierForm />
+      <div className="rise" style={{ animationDelay: "340ms" }}>
+        <DossierForm />
+      </div>
 
       <footer className="mt-16 pt-8 border-t border-rule text-faded-ink text-sm font-prose">
         <p>
