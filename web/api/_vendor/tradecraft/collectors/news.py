@@ -56,6 +56,34 @@ _SIGNAL_PATTERNS: tuple[tuple[Signal, re.Pattern[str]], ...] = (
 )
 
 
+def _most_recent(items: list[dict[str, Any]]) -> dict[str, Any]:
+    """Return the most-recent item: dated items sorted by date desc, then undated.
+
+    Callers must ensure ``items`` is non-empty.
+    """
+    dated = sorted(
+        [i for i in items if i.get("date_iso") is not None],
+        key=lambda i: i["date_iso"],
+        reverse=True,
+    )
+    undated = [i for i in items if i.get("date_iso") is None]
+    return dated[0] if dated else undated[0]
+
+
+def _evidence_from_item(item: dict[str, Any], signal: Signal) -> Evidence:
+    """Build an Evidence for a news item, hardening the url to ^https?://."""
+    source_name = "news.google" if item.get("source") == "google_news" else "hn"
+    raw_url = item.get("url") or ""
+    safe_url = raw_url if re.match(r"^https?://", raw_url, re.IGNORECASE) else None
+    return Evidence(
+        signal=signal,
+        summary=item.get("title", ""),
+        url=safe_url,
+        date=item.get("date_iso"),
+        source=source_name,
+    )
+
+
 def _parse_date_iso(item: dict[str, Any]) -> str | None:
     """Return ISO YYYY-MM-DD date for an item, or None if unparseable."""
     source = item.get("source", "")
@@ -200,26 +228,21 @@ class NewsCollector:
             if not matching:
                 continue
             signals.append(sig)
-            # Pick most-recent item: dated items sorted by date desc, then undated
-            dated = sorted(
-                [i for i in matching if i.get("date_iso") is not None],
-                key=lambda i: i["date_iso"],
-                reverse=True,
-            )
-            undated = [i for i in matching if i.get("date_iso") is None]
-            best = dated[0] if dated else undated[0]
-            source_name = "news.google" if best.get("source") == "google_news" else "hn"
-            raw_url = best.get("url") or ""
-            safe_url = raw_url if re.match(r"^https?://", raw_url, re.IGNORECASE) else None
-            evidence.append(
-                Evidence(
-                    signal=sig,
-                    summary=best.get("title", ""),
-                    url=safe_url,
-                    date=best.get("date_iso"),
-                    source=source_name,
-                )
-            )
+            evidence.append(_evidence_from_item(_most_recent(matching), sig))
+
+        # Catch-all: notable news (acquisitions, launches, partnerships, expansions,
+        # fund closes, …) that matches none of the four category patterns above.
+        # Fire RECENT_NEWS for the most-recent recent+relevant item that is NOT
+        # already categorized. If every recent item is categorized (or there are
+        # none), RECENT_NEWS does not fire.
+        def _is_categorized(item: dict[str, Any]) -> bool:
+            title = item.get("title", "")
+            return any(pattern.search(title) for _, pattern in _SIGNAL_PATTERNS)
+
+        uncategorized = [i for i in items if not _is_categorized(i)]
+        if uncategorized:
+            signals.append(Signal.RECENT_NEWS)
+            evidence.append(_evidence_from_item(_most_recent(uncategorized), Signal.RECENT_NEWS))
 
         # Strip internal fields before returning in data
         public_items = [
