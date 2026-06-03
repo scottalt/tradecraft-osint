@@ -197,11 +197,145 @@ h1, h2, h3 {
   box-shadow: inset 0 0 0 1px rgba(184, 35, 26, 0.35);
 }
 
+/* ───────────────── Collection console (compile sequence) ───────────────── */
+
+.console-panel {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid var(--color-ink);
+  border-radius: 4px;
+  background: #161310;
+  color: #8fce75; /* phosphor green */
+  font-family: var(--font-data);
+  box-shadow:
+    4px 4px 0 0 rgba(26, 22, 18, 0.18),
+    inset 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+.console-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.04) 0px,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.console-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.5em 0.9em;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: #d8c08a;
+  border-bottom: 1px solid rgba(143, 206, 117, 0.25);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.console-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e8533f;
+  box-shadow: 0 0 8px 1px rgba(232, 83, 63, 0.8);
+  animation: led-blink 1.4s steps(1) infinite;
+}
+
+@keyframes led-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.console-body {
+  padding: 0.7em 0.9em 0.9em;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.console-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  white-space: nowrap;
+}
+
+.console-glyph {
+  width: 1.1em;
+  text-align: center;
+  flex: none;
+}
+
+.console-label {
+  flex: none;
+}
+
+.console-dots {
+  flex: 1 1 auto;
+  border-bottom: 1px dotted rgba(143, 206, 117, 0.3);
+  margin: 0 0.2em;
+  transform: translateY(-3px);
+}
+
+.console-detail {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+}
+
+.console-queued {
+  color: rgba(143, 206, 117, 0.4);
+}
+
+.console-run {
+  color: #e0a83c; /* amber */
+}
+
+.console-run .console-detail {
+  animation: led-blink 0.8s steps(1) infinite;
+}
+
+.console-done {
+  color: #8fce75;
+}
+
+.console-cursor {
+  color: #d8c08a;
+  margin-top: 0.2em;
+}
+
+.console-blink {
+  animation: cursor-blink 1s steps(1) infinite;
+}
+
+/* ───────────────── Redaction reveal (declassify questions) ───────────────── */
+
+.redaction-wrap {
+  position: relative;
+}
+
+.redaction-cover {
+  position: absolute;
+  inset: -2px -5px;
+  background: var(--color-ink);
+  z-index: 5;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-radar,
   .hero-scan::after,
   .tw-cursor,
-  .hero-dot {
+  .hero-dot,
+  .console-led,
+  .console-blink,
+  .console-run .console-detail {
     animation: none !important;
   }
 }
