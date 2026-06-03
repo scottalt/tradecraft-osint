@@ -17,9 +17,35 @@ const SOURCES = [
   { id: "business", label: "Industry classification", detail: "sector profiling" },
 ];
 
+const HEX = "0123456789abcdef";
+const LOG_TEMPLATES = [
+  () => `resolve → 104.18.${rint(0, 254)}.${rint(0, 254)}  [A]`,
+  () => `crt.sh  + ${rint(2, 41)} subdomains in CT logs`,
+  () => `GET /careers  200  ${rint(3, 88)}.${rint(0, 9)}kb`,
+  () => `tls  SHA256 ${hex(2)}:${hex(2)}:${hex(2)}:${hex(2)}…`,
+  () => `mx  ${pick(["mimecast", "google", "proofpoint", "cloudflare"])}.net`,
+  () => `rss  ${rint(4, 22)} items · 12-month window`,
+  () => `wiki  infobox ✓  industry classified`,
+  () => `gh  org ✓  ${rint(6, 240)} repos · langs[${rint(2, 7)}]`,
+  () => `txt  spf/dmarc parsed · ${rint(3, 14)} vendor tokens`,
+];
+
+function rint(a: number, b: number) {
+  return a + Math.floor(Math.random() * (b - a + 1));
+}
+function hex(n: number) {
+  let s = "";
+  for (let i = 0; i < n; i++) s += HEX[Math.floor(Math.random() * 16)];
+  return s;
+}
+function pick<T>(xs: T[]): T {
+  return xs[Math.floor(Math.random() * xs.length)];
+}
+
 export function CompileSequence() {
   const reduced = useReducedMotion();
   const [active, setActive] = useState(reduced ? SOURCES.length : 0);
+  const [logs, setLogs] = useState<string[]>([]);
 
   useEffect(() => {
     if (reduced) return;
@@ -27,6 +53,14 @@ export function CompileSequence() {
       () => setActive((n) => (n >= SOURCES.length ? n : n + 1)),
       560,
     );
+    return () => clearInterval(t);
+  }, [reduced]);
+
+  useEffect(() => {
+    if (reduced) return;
+    const t = setInterval(() => {
+      setLogs((prev) => [...prev, pick(LOG_TEMPLATES)()].slice(-5));
+    }, 320);
     return () => clearInterval(t);
   }, [reduced]);
 
@@ -65,6 +99,25 @@ export function CompileSequence() {
             </motion.div>
           );
         })}
+
+        {!reduced && logs.length > 0 && (
+          <div className="console-stream" aria-hidden>
+            {logs.map((l, i) => (
+              <motion.div
+                key={`${l}-${i}`}
+                className="console-streamline"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.45 + i * 0.11 }}
+                transition={{ duration: 0.2 }}
+              >
+                <span className="console-ts">
+                  {String(rint(10, 59)).padStart(2, "0")}:{String(rint(10, 59)).padStart(2, "0")}
+                </span>{" "}
+                {l}
+              </motion.div>
+            ))}
+          </div>
+        )}
 
         <div className="console-row console-cursor">
           <span className="console-glyph">$</span>

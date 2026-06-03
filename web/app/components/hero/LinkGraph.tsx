@@ -3,8 +3,9 @@
 import { motion, useReducedMotion } from "motion/react";
 
 /** An animated intelligence "link analysis" chart: a central target node with
- *  satellite collection sources, edges that draw themselves on, and nodes that
- *  pulse like live signals. Purely decorative — drawn on the dossier paper. */
+ *  satellite collection sources, edges that draw themselves on, a rotating
+ *  radar beam, data packets flowing outward along the wires, and nodes that
+ *  glow and pulse like live signals. Purely decorative — drawn on the dossier. */
 
 type Node = {
   id: string;
@@ -40,10 +41,12 @@ const EDGES: [string, string][] = [
 ];
 
 const byId = (id: string) => NODES.find((n) => n.id === id)!;
+const TARGET = byId("target");
+const BEAM_R = 168;
 
 export function LinkGraph() {
   const reduced = useReducedMotion();
-  const base = reduced ? 0 : 0.9; // edges start after the title begins typing
+  const base = reduced ? 0 : 0.9;
 
   return (
     <svg
@@ -54,17 +57,55 @@ export function LinkGraph() {
     >
       <defs>
         <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="var(--color-stamp-red)" stopOpacity="0.28" />
+          <stop offset="0%" stopColor="var(--color-stamp-red)" stopOpacity="0.3" />
           <stop offset="70%" stopColor="var(--color-stamp-red)" stopOpacity="0" />
         </radialGradient>
+        <linearGradient id="beamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="var(--color-stamp-blue)" stopOpacity="0.32" />
+          <stop offset="100%" stopColor="var(--color-stamp-blue)" stopOpacity="0" />
+        </linearGradient>
+        <filter id="nodeGlow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="2.4" result="b" />
+          <feMerge>
+            <feMergeNode in="b" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
 
-      {/* faint concentric range rings around the target */}
+      {/* rotating radar beam emanating from the target */}
+      {!reduced && (
+        <motion.g
+          style={{ transformOrigin: `${TARGET.x}px ${TARGET.y}px` }}
+          initial={{ rotate: 0, opacity: 0 }}
+          animate={{ rotate: 360, opacity: 1 }}
+          transition={{
+            rotate: { duration: 7, repeat: Infinity, ease: "linear" },
+            opacity: { delay: base + 0.6, duration: 0.8 },
+          }}
+        >
+          <polygon
+            points={`${TARGET.x},${TARGET.y} ${TARGET.x + BEAM_R},${TARGET.y - 26} ${TARGET.x + BEAM_R},${TARGET.y + 8}`}
+            fill="url(#beamGrad)"
+          />
+          <line
+            x1={TARGET.x}
+            y1={TARGET.y}
+            x2={TARGET.x + BEAM_R}
+            y2={TARGET.y}
+            stroke="var(--color-stamp-blue)"
+            strokeWidth={1}
+            strokeOpacity={0.4}
+          />
+        </motion.g>
+      )}
+
+      {/* faint concentric range rings */}
       {[58, 104, 156].map((r, i) => (
         <motion.circle
           key={`ring-${r}`}
-          cx={byId("target").x}
-          cy={byId("target").y}
+          cx={TARGET.x}
+          cy={TARGET.y}
           r={r}
           fill="none"
           stroke="var(--color-rule)"
@@ -98,6 +139,34 @@ export function LinkGraph() {
         );
       })}
 
+      {/* data packets flowing outward from the target along each spoke */}
+      {!reduced &&
+        EDGES.filter(([a]) => a === "target").map(([a, b], i) => {
+          const na = byId(a);
+          const nb = byId(b);
+          return (
+            <motion.circle
+              key={`packet-${b}`}
+              r={2.6}
+              fill="var(--color-stamp-red)"
+              filter="url(#nodeGlow)"
+              initial={{ cx: na.x, cy: na.y, opacity: 0 }}
+              animate={{
+                cx: [na.x, nb.x],
+                cy: [na.y, nb.y],
+                opacity: [0, 1, 1, 0],
+              }}
+              transition={{
+                duration: 1.6,
+                repeat: Infinity,
+                repeatDelay: 1.4,
+                delay: base + 1.6 + i * 0.32,
+                ease: "easeInOut",
+              }}
+            />
+          );
+        })}
+
       {/* nodes */}
       {NODES.map((n, i) => (
         <motion.g
@@ -114,7 +183,6 @@ export function LinkGraph() {
         >
           {n.core && <circle cx={n.x} cy={n.y} r={70} fill="url(#coreGlow)" />}
 
-          {/* pulsing signal ring */}
           {!reduced && (
             <motion.circle
               cx={n.x}
@@ -143,6 +211,7 @@ export function LinkGraph() {
             fill="var(--color-paper)"
             stroke={n.core ? "var(--color-stamp-red)" : "var(--color-ink)"}
             strokeWidth={n.core ? 2.4 : 1.6}
+            filter={n.core ? "url(#nodeGlow)" : undefined}
           />
           <circle
             cx={n.x}

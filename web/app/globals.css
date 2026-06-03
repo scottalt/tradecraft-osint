@@ -57,6 +57,113 @@ h1, h2, h3 {
   transform: rotate(-2deg);
 }
 
+/* Cinematic edge vignette over the whole page (very subtle). */
+.page-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: radial-gradient(
+    125% 105% at 50% 28%,
+    transparent 52%,
+    rgba(26, 22, 18, 0.12) 100%
+  );
+  mix-blend-mode: multiply;
+}
+
+/* ───────────────────── Live intel-field background ───────────────────── */
+
+.intel-field {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+/* Page content rides above the field. */
+body > main,
+body > .page-shell {
+  position: relative;
+  z-index: 1;
+}
+
+/* ───────────────────────── Boot intro overlay ───────────────────────── */
+
+.boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(120% 120% at 50% 40%, #1b1813 0%, #0c0a08 100%);
+}
+
+.boot-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(143, 206, 117, 0.05) 0px,
+    rgba(143, 206, 117, 0.05) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.boot-term {
+  position: relative;
+  width: min(520px, 88vw);
+  border: 1px solid rgba(143, 206, 117, 0.35);
+  border-radius: 5px;
+  background: rgba(8, 8, 6, 0.7);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  font-family: var(--font-data);
+  color: #8fce75;
+  overflow: hidden;
+}
+
+.boot-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.55em 0.9em;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: #d8c08a;
+  border-bottom: 1px solid rgba(143, 206, 117, 0.25);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.boot-lines {
+  padding: 1em 1.1em 0.6em;
+  font-size: 13px;
+  line-height: 1.85;
+  min-height: 9.5em;
+}
+
+.boot-prompt {
+  color: #e0a83c;
+}
+
+.boot-progress {
+  height: 4px;
+  margin: 0.4em 1.1em 1.1em;
+  background: rgba(143, 206, 117, 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.boot-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8fce75, #e0a83c);
+  box-shadow: 0 0 10px rgba(143, 206, 117, 0.6);
+}
+
 /* ───────────────────────── Cinematic hero ───────────────────────── */
 
 .hero-frame {
@@ -303,6 +410,26 @@ h1, h2, h3 {
 
 .console-done {
   color: #8fce75;
+}
+
+.console-stream {
+  margin: 0.5em 0 0.3em;
+  padding: 0.5em 0.7em;
+  border-left: 2px solid rgba(143, 206, 117, 0.25);
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 11px;
+  line-height: 1.6;
+  color: rgba(143, 206, 117, 0.75);
+}
+
+.console-streamline {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.console-ts {
+  color: rgba(216, 192, 138, 0.6);
 }
 
 .console-cursor {
