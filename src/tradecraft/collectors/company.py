@@ -19,12 +19,56 @@ from tradecraft.models import (
     Signal,
 )
 
-_PATHS = ("/about", "/about-us", "/team", "/leadership", "/careers", "/press", "/blog")
+_PATHS = (
+    "/about",
+    "/about-us",
+    "/team",
+    "/leadership",
+    "/careers",
+    "/press",
+    "/blog",
+    "/security",
+    "/trust",
+    "/compliance",
+)
 _TECH_HINTS = re.compile(
     r"\b(engineer|cto|cs|computer\s+science|stanford|mit|principal|staff\s+engineer)\b",
     re.IGNORECASE,
 )
 _FOUNDER_HINTS = re.compile(r"\b(co.?founder|founder|founding)\b", re.IGNORECASE)
+
+# Compliance frameworks / certifications referenced on a company's own pages
+# (often /security, /trust, /compliance). A match is a GRC interview hook.
+# `_FRAMEWORK_LABELS` maps the lowercased match to a display label.
+_COMPLIANCE_FRAMEWORKS = re.compile(
+    r"\b("
+    r"fedramp|soc\s*2|soc2|iso\s*/?\s*iec\s*27001|iso\s*27001|"
+    r"hipaa|pci[\s-]?dss|gdpr|fisma|cmmc|hitrust|nist\s*800-53"
+    r")\b",
+    re.IGNORECASE,
+)
+_FRAMEWORK_LABELS: dict[str, str] = {
+    "fedramp": "FedRAMP",
+    "soc2": "SOC 2",
+    "hipaa": "HIPAA",
+    "pcidss": "PCI DSS",
+    "gdpr": "GDPR",
+    "fisma": "FISMA",
+    "cmmc": "CMMC",
+    "hitrust": "HITRUST",
+}
+
+
+def _framework_label(match: str) -> str:
+    """Normalize a raw compliance-framework match to a display label."""
+    key = re.sub(r"[\s/-]+", "", match.lower())
+    if key in _FRAMEWORK_LABELS:
+        return _FRAMEWORK_LABELS[key]
+    if key.startswith("iso") and "27001" in key:
+        return "ISO 27001"
+    if key.startswith("nist"):
+        return "NIST 800-53"
+    return match.upper()
 
 
 class CompanyCollector:
@@ -106,6 +150,33 @@ class CompanyCollector:
         combined_text = " ".join(p["body_excerpt"] for p in pages)
         if _FOUNDER_HINTS.search(combined_text) and _TECH_HINTS.search(combined_text):
             signals.append(Signal.FOUNDER_TECHNICAL)
+
+        # COMPLIANCE_NOTED: a compliance framework / certification referenced on the
+        # company's own pages (titles, headings, descriptions, body excerpts) is a
+        # GRC interview hook. Cites the site root (undated). When news also emits
+        # COMPLIANCE_NOTED with a dated headline, the heuristics layer prefers the
+        # dated evidence; this is the fallback when the site is the only source.
+        compliance_corpus = " ".join(
+            [
+                *(p["title"] for p in pages),
+                *(p["description"] for p in pages),
+                *(h for p in pages for h in p["headings"]),
+                *(p["body_excerpt"] for p in pages),
+            ]
+        )
+        compliance_match = _COMPLIANCE_FRAMEWORKS.search(compliance_corpus)
+        if compliance_match is not None:
+            framework = _framework_label(compliance_match.group(1))
+            signals.append(Signal.COMPLIANCE_NOTED)
+            evidence.append(
+                Evidence(
+                    signal=Signal.COMPLIANCE_NOTED,
+                    summary=f"references {framework}",
+                    url=root_url,
+                    date=None,
+                    source="company",
+                )
+            )
 
         # PRODUCT_LIST_EMPTY: zero pages with headings indicates a sparse site.
         if not any(p["headings"] for p in pages):

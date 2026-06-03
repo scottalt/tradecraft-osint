@@ -273,16 +273,19 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         confidence="low",
         source="company",
     ),
+    # ---- news (compliance / GRC) ----
     QuestionTemplate(
-        id="company.product_empty",
-        signals=(Signal.PRODUCT_LIST_EMPTY,),
-        roles=frozenset({Role.CYBERSECURITY}),
+        id="news.compliance",
+        signals=(Signal.COMPLIANCE_NOTED,),
+        roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
         text=(
-            "Your public site is sparse on product details. "
-            "Is that a deliberate stealth posture, or is messaging evolving?"
+            "I saw '{summary}' (via {source}, {date}). How does that compliance posture "
+            "shape the security team's day-to-day — audit cadence, control ownership, "
+            "and what's the next certification on the roadmap?"
         ),
-        confidence="low",
-        source="company",
+        confidence="high",
+        source="news",
+        needs_evidence=True,
     ),
     # ---- job (AppSec / offensive / defensive / GRC across stack mismatch) ----
     QuestionTemplate(

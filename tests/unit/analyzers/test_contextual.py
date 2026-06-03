@@ -123,6 +123,34 @@ def test_cap_at_two_industry_questions() -> None:
     assert "healthcare & life sciences" in qs[1].text
 
 
+def test_biotechnology_classifies_to_healthcare_not_generic() -> None:
+    """Regression: the Wikipedia industry label 'Biotechnology' must classify to
+    healthcare & life sciences (broadened keywords), not fall to the generic
+    fallback. (Moderna real-world test.)"""
+    qs = contextual_questions(_findings(evidence=[_industry_ev("Biotechnology")]))
+    assert len(qs) == 1
+    q = qs[0]
+    assert "healthcare & life sciences" in q.text
+    assert "HIPAA/PHI" in q.text  # cyber angle
+    # Must NOT be the generic "which security threats are most specific" fallback.
+    assert "which security threats are most specific" not in q.text
+
+
+def test_gov_defense_outranks_single_ai_keyword() -> None:
+    """Score-based selection: a Palantir-style description hitting government,
+    defense, AND intelligence agencies (score 3) must outrank a single AI keyword
+    (score 1), so 'government & defense' is the top industry question."""
+    desc = _desc_ev(
+        "Palantir builds software for government, defense, and intelligence agencies, "
+        "applying machine learning to mission data."
+    )
+    qs = contextual_questions(_findings(evidence=[desc]))
+    assert len(qs) == 2  # 2-cap still holds
+    # gov/defense (score 3) sorts ahead of AI/ML (score 1).
+    assert "government & defense" in qs[0].text
+    assert "AI, ML & data" in qs[1].text
+
+
 def test_non_cyber_role_uses_generic_angle() -> None:
     ev = _industry_ev("Cloud computing and CDN")
     qs = contextual_questions(_findings(role=Role.SWE, evidence=[ev]))
