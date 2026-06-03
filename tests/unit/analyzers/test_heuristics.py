@@ -235,6 +235,27 @@ def test_real_headline_med_outranks_config_med() -> None:
     assert "Hacker News" in questions[0].text
 
 
+def test_recent_news_evidence_renders_headline() -> None:
+    """A Findings carrying RECENT_NEWS evidence yields a question whose text
+    contains the real headline (the news.recent catch-all template)."""
+    ev = Evidence(
+        signal=Signal.RECENT_NEWS,
+        summary="Acme acquires Foobar Inc to expand platform",
+        date="2026-05-20",
+        source="news.google",
+    )
+    f = _findings_with([Signal.RECENT_NEWS], evidence=[ev])
+    questions = generate_questions(f)
+    assert questions
+    q = next(
+        (q for q in questions if "Acme acquires Foobar Inc to expand platform" in q.text), None
+    )
+    assert q is not None
+    assert "2026-05-20" in q.text
+    assert "Google News" in q.text
+    assert q.evidence == ev
+
+
 def test_ma_subsidiary_renders_summary_and_source_no_date() -> None:
     """ma.subsidiary cites {summary} + {source} (provenance) but NOT a misleading
     date — the parent/subsidiary relationship is structural, not a recent event."""

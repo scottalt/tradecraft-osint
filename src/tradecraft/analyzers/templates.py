@@ -116,6 +116,18 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
         needs_evidence=True,
     ),
     QuestionTemplate(
+        id="news.recent",
+        signals=(Signal.RECENT_NEWS,),
+        roles=frozenset(_ALL_TECH_ROLES | {Role.GENERIC}),
+        text=(
+            "I saw '{summary}' (via {source}, {date}). "
+            "What's the story behind that, and how is it shaping the team's priorities right now?"
+        ),
+        confidence="high",
+        source="news",
+        needs_evidence=True,
+    ),
+    QuestionTemplate(
         id="breaches.history",
         signals=(Signal.BREACH_HISTORY,),
         roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
@@ -184,17 +196,6 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "dependency review, SBOM generation, signed commits?"
         ),
         confidence="med",
-        source="github",
-    ),
-    QuestionTemplate(
-        id="github.no_public",
-        signals=(Signal.NO_PUBLIC_GITHUB,),
-        roles=frozenset({Role.CYBERSECURITY, Role.ENG_LEADERSHIP}),
-        text=(
-            "No public GitHub org under the brand name. "
-            "Is that a deliberate posture — all internal-only — or are repos under personal accounts?"
-        ),
-        confidence="low",
         source="github",
     ),
     # ---- news (defensive + offensive + GRC) ----
@@ -318,17 +319,6 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "or stay quieter for risk reasons?"
         ),
         confidence="med",
-        source="people",
-    ),
-    QuestionTemplate(
-        id="people.quiet_brand",
-        signals=(Signal.QUIET_ENG_BRAND,),
-        roles=frozenset({Role.CYBERSECURITY}),
-        text=(
-            "I couldn't find much public engineering content from the team. "
-            "Is that a posture choice, or are folks focused inward?"
-        ),
-        confidence="low",
         source="people",
     ),
     # ---- business (GRC + defensive) ----

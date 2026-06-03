@@ -38,6 +38,7 @@ class Signal(StrEnum):
     RECENT_FUNDING = "recent_funding"
     RECENT_LEADERSHIP_CHANGE = "recent_leadership_change"
     RECENT_SECURITY_INCIDENT = "recent_security_incident"
+    RECENT_NEWS = "recent_news"
     # breaches
     BREACH_HISTORY = "breach_history"
     BREACH_RECENT = "breach_recent"

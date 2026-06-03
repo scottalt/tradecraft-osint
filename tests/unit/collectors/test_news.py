@@ -556,3 +556,128 @@ async def test_evidence_iso_date_correct(http) -> None:
     ev = next((e for e in result.evidence if e.signal == Signal.RECENT_LEADERSHIP_CHANGE), None)
     assert ev is not None
     assert ev.date == hn_date
+
+
+# ---------------------------------------------------------------------------
+# RECENT_NEWS catch-all: notable news matching none of the 4 category patterns
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+async def test_recent_news_catchall_fires_for_uncategorized_item(http) -> None:
+    """An uncategorized but recent+relevant headline (e.g. an acquisition) fires
+    RECENT_NEWS with that headline as Evidence."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent_iso = (today - timedelta(days=4)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme acquires Foobar Inc to expand platform",
+                        "url": "https://hn.test/acme-acquires",
+                        "created_at": recent_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_NEWS in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_NEWS), None)
+    assert ev is not None
+    assert ev.summary == "Acme acquires Foobar Inc to expand platform"
+    assert ev.source == "hn"
+    assert ev.date == (today - timedelta(days=4)).strftime("%Y-%m-%d")
+
+
+@respx.mock
+async def test_recent_news_catchall_does_not_fire_when_all_categorized(http) -> None:
+    """If every recent+relevant item already matches a category pattern (e.g. only
+    a layoffs headline), RECENT_NEWS does NOT fire."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent_iso = (today - timedelta(days=4)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme announces layoffs affecting 5% of staff",
+                        "url": "https://hn.test/acme-layoffs",
+                        "created_at": recent_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_LAYOFFS in result.signals
+    assert Signal.RECENT_NEWS not in result.signals
+    assert not any(e.signal == Signal.RECENT_NEWS for e in result.evidence)
+
+
+@respx.mock
+async def test_recent_news_catchall_most_recent_uncategorized_wins(http) -> None:
+    """Among several uncategorized items, the most-recent one becomes Evidence;
+    a categorized item is ignored for RECENT_NEWS."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    older_iso = (today - timedelta(days=40)).strftime("%Y-%m-%dT00:00:00Z")
+    newer_iso = (today - timedelta(days=3)).strftime("%Y-%m-%dT00:00:00Z")
+    layoff_iso = (today - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme launches new analytics product",
+                        "url": "https://hn.test/acme-old-launch",
+                        "created_at": older_iso,
+                    },
+                    {
+                        "title": "Acme partners with Globex on cloud platform",
+                        "url": "https://hn.test/acme-partner",
+                        "created_at": newer_iso,
+                    },
+                    {
+                        # categorized (layoffs) — must NOT be picked for RECENT_NEWS
+                        "title": "Acme announces layoffs",
+                        "url": "https://hn.test/acme-layoffs",
+                        "created_at": layoff_iso,
+                    },
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_NEWS in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_NEWS), None)
+    assert ev is not None
+    assert ev.summary == "Acme partners with Globex on cloud platform"
+    assert ev.url == "https://hn.test/acme-partner"

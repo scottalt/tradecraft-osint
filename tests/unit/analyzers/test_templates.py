@@ -83,6 +83,10 @@ _TEMPLATE_EXCLUDED_SIGNALS: frozenset[Signal] = frozenset(
         # low-value recon: templates removed as vague filler
         Signal.RECENT_PRESS_RELEASE,
         Signal.WIKIPEDIA_INFOBOX_PRESENT,
+        # negative-space filler: intentionally not turned into questions
+        # ("No public GitHub org…", "couldn't find much public eng content…")
+        Signal.NO_PUBLIC_GITHUB,
+        Signal.QUIET_ENG_BRAND,
     }
 )
 
@@ -162,8 +166,23 @@ def test_footprint_config_templates_removed() -> None:
         "company.recent_press",
         "company.recent_press.cyber_specific",
         "business.wikipedia",
+        # negative-space filler removed: questions must be company/news-specific
+        "github.no_public",
+        "people.quiet_brand",
     ):
         assert tid not in ids, f"{tid} should have been removed"
+
+
+def test_news_recent_template_present_and_evidence_backed() -> None:
+    """The recent-news catch-all template exists, needs evidence, and only uses
+    the safe {summary}/{source}/{date} slots."""
+    tmpl = _by_id("news.recent")
+    assert tmpl.signals == (Signal.RECENT_NEWS,)
+    assert tmpl.needs_evidence is True
+    assert tmpl.confidence == "high"
+    assert Role.GENERIC in tmpl.roles
+    slots = {fname for _, fname, _, _ in string.Formatter().parse(tmpl.text) if fname}
+    assert slots == {"summary", "source", "date"}
 
 
 def test_multiple_sub_disciplines_represented() -> None:
