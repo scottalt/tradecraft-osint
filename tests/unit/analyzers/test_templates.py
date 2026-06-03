@@ -199,7 +199,9 @@ def test_news_recent_template_present_and_evidence_backed() -> None:
     tmpl = _by_id("news.recent")
     assert tmpl.signals == (Signal.RECENT_NEWS,)
     assert tmpl.needs_evidence is True
-    assert tmpl.confidence == "high"
+    # Generic catch-all is intentionally "med" so categorized (industry /
+    # compliance / categorized-news) high questions lead (Round-2 Change 2).
+    assert tmpl.confidence == "med"
     assert Role.GENERIC in tmpl.roles
     slots = {fname for _, fname, _, _ in string.Formatter().parse(tmpl.text) if fname}
     assert slots == {"summary", "source", "date"}

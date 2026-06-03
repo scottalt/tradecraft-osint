@@ -335,6 +335,60 @@ def test_integration_contextual_and_news_lead_no_header_questions() -> None:
     assert len(texts) == len(set(texts))
 
 
+def test_compliance_noted_fires_grc_question_not_catchall() -> None:
+    """A COMPLIANCE_NOTED news evidence yields the news.compliance GRC question
+    (mentioning 'compliance posture' and 'audit cadence'). The news collector
+    excludes compliance headlines from the RECENT_NEWS pool, so the same headline
+    does NOT also produce a generic catch-all (here: no RECENT_NEWS evidence at
+    all, so the catch-all template cannot fire as a duplicate)."""
+    ev = Evidence(
+        signal=Signal.COMPLIANCE_NOTED,
+        summary="Datadog achieves FedRAMP High authorization",
+        date="2026-05-01",
+        source="news.google",
+    )
+    f = _findings_with([Signal.COMPLIANCE_NOTED], evidence=[ev])
+    questions = generate_questions(f)
+
+    grc = next(
+        (q for q in questions if "Datadog achieves FedRAMP High authorization" in q.text), None
+    )
+    assert grc is not None
+    assert "compliance posture" in grc.text
+    assert "audit cadence" in grc.text
+    assert grc.evidence == ev
+    # No generic catch-all of the same headline (the "story behind that" template).
+    assert not any("What's the story behind that" in q.text for q in questions)
+
+
+def test_compliance_grc_outranks_recent_news_catchall() -> None:
+    """When both a COMPLIANCE_NOTED headline and a separate RECENT_NEWS catch-all
+    item exist, the high-confidence compliance GRC question sorts above the now-med
+    catch-all (Change 2: news.recent downgraded high -> med)."""
+    compliance_ev = Evidence(
+        signal=Signal.COMPLIANCE_NOTED,
+        summary="Datadog achieves FedRAMP High authorization",
+        date="2026-05-01",
+        source="news.google",
+    )
+    catchall_ev = Evidence(
+        signal=Signal.RECENT_NEWS,
+        summary="Datadog partners with Globex on observability",
+        date="2026-05-02",
+        source="news.google",
+    )
+    f = _findings_with(
+        [Signal.COMPLIANCE_NOTED, Signal.RECENT_NEWS],
+        evidence=[compliance_ev, catchall_ev],
+    )
+    questions = generate_questions(f)
+    compliance_idx = next(i for i, q in enumerate(questions) if "compliance posture" in q.text)
+    catchall_idx = next(
+        i for i, q in enumerate(questions) if "What's the story behind that" in q.text
+    )
+    assert compliance_idx < catchall_idx
+
+
 def test_question_model_accepts_evidence() -> None:
     """Sanity: Question carries the Evidence object through."""
     ev = Evidence(signal=Signal.JOB_STACK_LISTED, summary="Go, Kubernetes", source="job")

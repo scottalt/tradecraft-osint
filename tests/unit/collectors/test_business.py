@@ -138,15 +138,18 @@ async def test_description_without_infobox(http) -> None:
 
 @respx.mock
 async def test_lead_paragraph_skips_infobox_p(http) -> None:
-    """A long <p> nested in an infobox cell must not be picked as the lead."""
+    """A long <p> nested in a non-classification infobox cell must not be picked
+    as the lead. (Infobox Products/Services/Areas-served values ARE appended to
+    the description — see test_infobox_products_appended — but other infobox <p>
+    prose, e.g. a Founders cell, must never masquerade as the lead.)"""
     client, cache = http
     respx.get("https://www.sec.gov/files/company_tickers.json").mock(
         return_value=httpx.Response(200, json={})
     )
     wiki = (
         "<!doctype html><html><body>"
-        "<table class='infobox'><tr><th>Products</th><td>"
-        "<p>This is infobox junk listing many product names that exceeds sixty "
+        "<table class='infobox'><tr><th>Founders</th><td>"
+        "<p>This is infobox junk listing many founder names that exceeds sixty "
         "characters and should never be chosen as the company lead description.</p>"
         "</td></tr></table>"
         "<div class='mw-parser-output'>"
@@ -164,6 +167,73 @@ async def test_lead_paragraph_skips_infobox_p(http) -> None:
     desc_ev = next(e for e in result.evidence if e.signal == Signal.BUSINESS_DESCRIPTION)
     assert "real security software company" in desc_ev.summary
     assert "infobox junk" not in desc_ev.summary
+
+
+@respx.mock
+async def test_lead_paragraphs_concatenated_up_to_three(http) -> None:
+    """Up to three qualifying lead <p> blocks are concatenated into the summary so
+    deeper-sector text surfaces for the classifier."""
+    client, cache = http
+    respx.get("https://www.sec.gov/files/company_tickers.json").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    wiki = (
+        "<!doctype html><html><body><div class='mw-parser-output'>"
+        "<p>Palantir Technologies is a public American company that specializes in "
+        "big data analytics and software platforms.</p>"
+        "<p>The company is known for three projects in particular and serves a wide "
+        "range of commercial customers across many sectors worldwide.</p>"
+        "<p>Its products are used by government agencies, defense, intelligence, and "
+        "law enforcement organizations to integrate and analyze sensitive data.</p>"
+        "<p>A fourth paragraph that should NOT be captured beyond the three-paragraph "
+        "cap applied by the lead-paragraph extractor.</p>"
+        "</div></body></html>"
+    )
+    respx.get("https://en.wikipedia.org/wiki/Acme_Corporation").mock(
+        return_value=httpx.Response(200, text=wiki)
+    )
+    target = Target(company_name="Acme Corporation", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await BusinessCollector().run(ctx)
+
+    desc_ev = next(e for e in result.evidence if e.signal == Signal.BUSINESS_DESCRIPTION)
+    assert "big data analytics" in desc_ev.summary
+    assert "government agencies, defense, intelligence" in desc_ev.summary
+    assert "fourth paragraph" not in desc_ev.summary
+
+
+@respx.mock
+async def test_infobox_products_appended_to_description(http) -> None:
+    """Infobox Products / Services / Areas-served values are appended to the
+    description so they feed the industry classifier."""
+    client, cache = http
+    respx.get("https://www.sec.gov/files/company_tickers.json").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    wiki = (
+        "<!doctype html><html><body>"
+        "<table class='infobox'>"
+        "<tr><th>Industry</th><td>Software</td></tr>"
+        "<tr><th>Products</th><td>Gotham, Foundry, Apollo for government and defense</td></tr>"
+        "<tr><th>Areas served</th><td>Worldwide</td></tr>"
+        "</table>"
+        "<div class='mw-parser-output'>"
+        "<p>Acme Corporation is a public American company specializing in big data "
+        "analytics and enterprise software platforms for large organizations.</p>"
+        "</div></body></html>"
+    )
+    respx.get("https://en.wikipedia.org/wiki/Acme_Corporation").mock(
+        return_value=httpx.Response(200, text=wiki)
+    )
+    target = Target(company_name="Acme Corporation", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await BusinessCollector().run(ctx)
+
+    desc_ev = next(e for e in result.evidence if e.signal == Signal.BUSINESS_DESCRIPTION)
+    assert "big data analytics" in desc_ev.summary
+    # Infobox Products + Areas served values appended.
+    assert "Gotham, Foundry, Apollo for government and defense" in desc_ev.summary
+    assert "Worldwide" in desc_ev.summary
 
 
 @respx.mock

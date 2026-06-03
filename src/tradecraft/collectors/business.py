@@ -124,10 +124,21 @@ class BusinessCollector:
                     )
                 )
 
-        # Lead paragraph: first real-prose <p> outside any table/infobox.
-        lead = BusinessCollector._first_lead_paragraph(tree)
+        # Lead paragraphs: concatenate the first up-to-3 real-prose <p> blocks
+        # outside any table/infobox. Capturing more than just the first paragraph
+        # lets deeper-sector signals (gov/defense, etc.) surface for the
+        # score-based industry matcher, which only sees this summary + the
+        # homepage meta description.
+        lead = BusinessCollector._lead_paragraphs(tree)
         if lead:
-            description = lead[:400]
+            description = lead[:600]
+            # Append infobox Products / Services / Areas served field values (if
+            # present) so they also feed the classification text. These are
+            # sector-rich (e.g. Palantir's "government agencies, defense,
+            # intelligence, law enforcement") yet absent from the Wikipedia lead.
+            infobox_extras = BusinessCollector._infobox_classification_extras(data)
+            if infobox_extras:
+                description = f"{description} {infobox_extras}".strip()[:760]
             data["description"] = description
             signals.append(Signal.BUSINESS_DESCRIPTION)
             evidence.append(
@@ -140,22 +151,50 @@ class BusinessCollector:
                 )
             )
 
-    @staticmethod
-    def _first_lead_paragraph(tree: HTMLParser) -> str | None:
-        """First real-prose <p> (>60 chars) that is not inside a table/infobox.
+    # Infobox fields whose values describe what the company does / who it serves;
+    # appended to the description so they feed the industry classifier.
+    _INFOBOX_CLASSIFICATION_FIELDS: ClassVar[tuple[str, ...]] = (
+        "products",
+        "services",
+        "areas served",
+    )
 
-        Prefers Wikipedia's ``.mw-parser-output`` content container so infobox
-        <p> cells (Products/Services etc.) cannot masquerade as the lead.
+    @staticmethod
+    def _infobox_classification_extras(data: dict[str, Any]) -> str:
+        """Join infobox Products / Services / Areas served values into one string."""
+        fields = data.get("wikipedia")
+        if not isinstance(fields, dict):
+            return ""
+        wanted = BusinessCollector._INFOBOX_CLASSIFICATION_FIELDS
+        parts = [
+            v.strip()
+            for k, v in fields.items()
+            if k.lower() in wanted and isinstance(v, str) and v.strip()
+        ]
+        return " ".join(parts)
+
+    @staticmethod
+    def _lead_paragraphs(tree: HTMLParser, max_paras: int = 3) -> str | None:
+        """Up to ``max_paras`` real-prose <p> blocks (>40 chars each), joined.
+
+        Each candidate must be outside any table/infobox. Prefers Wikipedia's
+        ``.mw-parser-output`` content container so infobox <p> cells
+        (Products/Services etc.) cannot masquerade as the lead.
         """
         container = tree.css_first(".mw-parser-output")
         candidates = container.css("p") if container else tree.css("p")
+        collected: list[str] = []
         for p in candidates:
             if BusinessCollector._has_table_ancestor(p):
                 continue
             text = BusinessCollector._clean_text(p)
-            if len(text) > 60:
-                return text
-        return None
+            if len(text) > 40:
+                collected.append(text)
+                if len(collected) >= max_paras:
+                    break
+        if not collected:
+            return None
+        return " ".join(collected)
 
     @staticmethod
     def _clean_text(node: Node) -> str:

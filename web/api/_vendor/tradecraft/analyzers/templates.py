@@ -123,7 +123,11 @@ TEMPLATES: tuple[QuestionTemplate, ...] = (
             "I saw '{summary}' (via {source}, {date}). "
             "What's the story behind that, and how is it shaping the team's priorities right now?"
         ),
-        confidence="high",
+        # "med", not "high": this is a generic catch-all. It should sit BELOW the
+        # categorized (industry / compliance / categorized-news) high-confidence
+        # questions, while the evidence-first sort still keeps it above any
+        # no-evidence question.
+        confidence="med",
         source="news",
         needs_evidence=True,
     ),
