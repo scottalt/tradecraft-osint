@@ -106,3 +106,37 @@ async def test_no_pages_emits_product_empty(http) -> None:
     assert Signal.PRODUCT_LIST_EMPTY in result.signals
     assert Signal.BUSINESS_DESCRIPTION not in result.signals
     assert not result.evidence
+
+
+@respx.mock
+async def test_security_page_with_soc2_emits_compliance_noted(http) -> None:
+    """A /security page mentioning 'SOC 2' emits COMPLIANCE_NOTED evidence citing
+    the site root — a GRC interview hook. Also confirms /security is fetched."""
+    client, cache = http
+    respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    home = "<html><head><title>Acme</title></head><body><h1>Acme</h1></body></html>"
+    security_page = (
+        "<html><head><title>Security - Acme</title></head><body>"
+        "<h1>Trust & Security</h1>"
+        "<p>Acme maintains SOC 2 Type II and ISO 27001 certifications.</p>"
+        "</body></html>"
+    )
+    respx.get("https://acme.com/").mock(return_value=httpx.Response(200, text=home))
+    respx.get("https://acme.com/security").mock(
+        return_value=httpx.Response(200, text=security_page)
+    )
+    respx.get("").mock(return_value=httpx.Response(404))
+
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await CompanyCollector().run(ctx)
+
+    # /security was fetched and parsed.
+    assert "security" in {p["path"] for p in result.data["pages"]}
+
+    assert Signal.COMPLIANCE_NOTED in result.signals
+    ev = next(e for e in result.evidence if e.signal == Signal.COMPLIANCE_NOTED)
+    assert ev.summary == "references SOC 2"
+    assert ev.url == "https://acme.com/"
+    assert ev.source == "company"
+    assert ev.date is None

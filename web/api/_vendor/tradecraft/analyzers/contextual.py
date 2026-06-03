@@ -100,7 +100,17 @@ _INDUSTRY_PROFILES: tuple[IndustryProfile, ...] = (
                 "clinical",
                 "pharma",
                 "pharmaceutical",
+                "pharmaceuticals",
                 "biotech",
+                "biotechnology",
+                "vaccine",
+                "vaccines",
+                "therapeutics",
+                "life sciences",
+                "drug",
+                "mrna",
+                "oncology",
+                "diagnostics",
                 "hospital",
                 "diagnostic",
                 "telehealth",
@@ -229,6 +239,11 @@ _INDUSTRY_PROFILES: tuple[IndustryProfile, ...] = (
                 "federal",
                 "govtech",
                 "intelligence",
+                "intelligence agencies",
+                "national security",
+                "law enforcement",
+                "homeland",
+                "classified",
                 "aerospace",
             }
         ),
@@ -356,6 +371,23 @@ def _shorten(text: str, limit: int) -> str:
     return text[:limit].rsplit(" ", 1)[0] + "…"
 
 
+def _matched_profiles(text: str) -> list[IndustryProfile]:
+    """Score each profile by the number of DISTINCT keywords that match ``text``.
+
+    Keep profiles with score>=1, sort by score DESC with ties broken by table
+    order (stable over enumerate index). This lets a strong multi-keyword match
+    (e.g. Palantir hitting government+defense+intelligence) outrank a
+    single-keyword match. Caller caps the result.
+    """
+    scored: list[tuple[int, int, IndustryProfile]] = []
+    for idx, p in enumerate(_INDUSTRY_PROFILES):
+        score = sum(1 for kw in p.keywords if _matches_keyword(text, kw))
+        if score >= 1:
+            scored.append((score, idx, p))
+    scored.sort(key=lambda t: (-t[0], t[1]))
+    return [p for _, _, p in scored]
+
+
 def _industry_questions(findings: Findings) -> list[Question]:
     role = findings.target.role
     is_cyber = role == Role.CYBERSECURITY
@@ -365,9 +397,7 @@ def _industry_questions(findings: Findings) -> list[Question]:
         return []
     text, cite_ev = classification
 
-    matched: list[IndustryProfile] = [
-        p for p in _INDUSTRY_PROFILES if any(_matches_keyword(text, kw) for kw in p.keywords)
-    ]
+    matched = _matched_profiles(text)
 
     questions: list[Question] = []
     if matched:

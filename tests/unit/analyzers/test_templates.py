@@ -87,6 +87,10 @@ _TEMPLATE_EXCLUDED_SIGNALS: frozenset[Signal] = frozenset(
         # ("No public GitHub org…", "couldn't find much public eng content…")
         Signal.NO_PUBLIC_GITHUB,
         Signal.QUIET_ENG_BRAND,
+        # weak filler removed: false-fired "sparse product details — stealth
+        # posture?" for rich sites (Moderna, Palantir). Signal still emitted, no
+        # question.
+        Signal.PRODUCT_LIST_EMPTY,
     }
 )
 
@@ -169,8 +173,24 @@ def test_footprint_config_templates_removed() -> None:
         # negative-space filler removed: questions must be company/news-specific
         "github.no_public",
         "people.quiet_brand",
+        # weak filler removed: false-fired for rich sites
+        "company.product_empty",
     ):
         assert tid not in ids, f"{tid} should have been removed"
+
+
+def test_news_compliance_template_present_and_evidence_backed() -> None:
+    """The compliance/GRC template exists, needs evidence, is high-confidence, and
+    only uses the safe {summary}/{source}/{date} slots (so a None date renders
+    'recently' via the heuristics fallback)."""
+    tmpl = _by_id("news.compliance")
+    assert tmpl.signals == (Signal.COMPLIANCE_NOTED,)
+    assert tmpl.needs_evidence is True
+    assert tmpl.confidence == "high"
+    assert Role.CYBERSECURITY in tmpl.roles
+    assert Role.ENG_LEADERSHIP in tmpl.roles
+    slots = {fname for _, fname, _, _ in string.Formatter().parse(tmpl.text) if fname}
+    assert slots == {"summary", "source", "date"}
 
 
 def test_news_recent_template_present_and_evidence_backed() -> None:

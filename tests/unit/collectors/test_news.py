@@ -681,3 +681,137 @@ async def test_recent_news_catchall_most_recent_uncategorized_wins(http) -> None
     assert ev is not None
     assert ev.summary == "Acme partners with Globex on cloud platform"
     assert ev.url == "https://hn.test/acme-partner"
+
+
+# ---------------------------------------------------------------------------
+# Financial-press noise: never used as Evidence (kept in raw items)
+# ---------------------------------------------------------------------------
+
+
+@respx.mock
+async def test_financial_noise_not_used_as_recent_news_evidence(http) -> None:
+    """Stock/market-press headlines (buyback, insider sale, Zacks) are kept in the
+    raw items list but never selected as RECENT_NEWS Evidence; a substantive
+    headline wins instead."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    noise_iso = (today - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z")
+    substantive_iso = (today - timedelta(days=5)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme Board Authorizes $3 Billion Share Repurchase Program",
+                        "url": "https://hn.test/acme-buyback",
+                        "created_at": noise_iso,
+                    },
+                    {
+                        "title": "Acme director sells 3,265 shares",
+                        "url": "https://hn.test/acme-insider",
+                        "created_at": noise_iso,
+                    },
+                    {
+                        "title": "Acme Zacks Investment Ideas feature",
+                        "url": "https://hn.test/acme-zacks",
+                        "created_at": noise_iso,
+                    },
+                    {
+                        "title": "Acme launches enterprise observability platform",
+                        "url": "https://hn.test/acme-launch",
+                        "created_at": substantive_iso,
+                    },
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    # Noise headlines are still present in the raw items list.
+    titles = {i["title"] for i in result.data["items"]}
+    assert "Acme Board Authorizes $3 Billion Share Repurchase Program" in titles
+    assert "Acme director sells 3,265 shares" in titles
+
+    assert Signal.RECENT_NEWS in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_NEWS), None)
+    assert ev is not None
+    # The substantive headline wins despite being older than the noise.
+    assert ev.summary == "Acme launches enterprise observability platform"
+
+
+@respx.mock
+async def test_valuation_no_longer_triggers_recent_funding(http) -> None:
+    """A 'valuation' note is stock noise, not a funding round — RECENT_FUNDING
+    must NOT fire (the pattern no longer includes 'valuation')."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent_iso = (today - timedelta(days=3)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme hits $369B valuation amid market rally",
+                        "url": "https://hn.test/acme-valuation",
+                        "created_at": recent_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_FUNDING not in result.signals
+    # It's also financial noise, so it isn't used as RECENT_NEWS evidence either.
+    assert not any(e.signal == Signal.RECENT_FUNDING for e in result.evidence)
+    assert not any(e.signal == Signal.RECENT_NEWS for e in result.evidence)
+
+
+@respx.mock
+async def test_fedramp_headline_fires_compliance_noted(http) -> None:
+    """A compliance-framework headline (e.g. 'FedRAMP High Certification') fires
+    COMPLIANCE_NOTED with that headline as Evidence — a GRC interview hook."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent_iso = (today - timedelta(days=2)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme achieves FedRAMP High Certification",
+                        "url": "https://hn.test/acme-fedramp",
+                        "created_at": recent_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.COMPLIANCE_NOTED in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.COMPLIANCE_NOTED), None)
+    assert ev is not None
+    assert ev.summary == "Acme achieves FedRAMP High Certification"
+    assert ev.source == "hn"

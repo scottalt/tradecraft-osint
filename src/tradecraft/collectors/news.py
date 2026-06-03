@@ -42,7 +42,7 @@ _SIGNAL_PATTERNS: tuple[tuple[Signal, re.Pattern[str]], ...] = (
     (
         Signal.RECENT_FUNDING,
         re.compile(
-            r"\b(raises?|series\s+[a-z]|funding\s+round|valuation|venture\s+round|seed\s+round)\b",
+            r"\b(raises?|series\s+[a-z]|funding\s+round|venture\s+round|seed\s+round)\b",
             re.IGNORECASE,
         ),
     ),
@@ -54,6 +54,40 @@ _SIGNAL_PATTERNS: tuple[tuple[Signal, re.Pattern[str]], ...] = (
         ),
     ),
 )
+
+
+# Stock / financial-press noise. Headlines matching this are kept in the raw
+# items list but never selected as Evidence (RECENT_NEWS / per-signal). These are
+# analyst notes, market-cap chatter, buybacks, insider sales — not substantive
+# company/security news that makes a good interview hook.
+_FINANCIAL_NOISE: re.Pattern[str] = re.compile(
+    r"\b(?:"
+    r"valuations?|shares?|stocks?|equity|analysts?|zacks|"
+    r"seeking\s+alpha|motley\s+fool|price\s+target|market\s+cap|"
+    r"buybacks?|repurchases?|insider|10b5-1|downgrades?|"
+    r"upgrades?\s+rating|(?:buy|hold|sell)\s+rating|dividends?|"
+    r"eps|earnings\s+per\s+share|"
+    r"director\s+(?:sells?|buys?)|shares?\s+(?:sold|bought|of)"
+    r")\b"
+    r"|nyse\s*:|nasdaq\s*:"
+    r"|\(\s*(?:nyse|nasdaq|pltr|[a-z]{2,5})\s*:\s*[a-z]{1,6}\s*\)",
+    re.IGNORECASE,
+)
+
+
+# Compliance frameworks / certifications. A headline (or page) mentioning one is a
+# high-value GRC interview hook (e.g. Datadog's "FedRAMP High Certification").
+_COMPLIANCE_FRAMEWORKS: re.Pattern[str] = re.compile(
+    r"\b(?:"
+    r"fedramp|soc\s*2|soc2|iso\s*/?\s*iec\s*27001|iso\s*27001|"
+    r"hipaa|pci[\s-]?dss|gdpr|fisma|cmmc|hitrust|nist\s*800-53"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _is_financial_noise(item: dict[str, Any]) -> bool:
+    return _FINANCIAL_NOISE.search(item.get("title", "")) is not None
 
 
 def _most_recent(items: list[dict[str, Any]]) -> dict[str, Any]:
@@ -222,24 +256,42 @@ class NewsCollector:
         items = _apply_recency_filter(raw_items, today)
         items = _apply_relevance_filter(items, ctx.target.company_name)
 
-        # Fire signals and attach evidence: one Evidence per signal (most-recent match)
+        # Stock / financial-press headlines stay in the raw items list (returned in
+        # data) but are never used as Evidence — they make poor interview questions.
+        substantive = [i for i in items if not _is_financial_noise(i)]
+
+        # Fire signals and attach evidence: one Evidence per signal (most-recent
+        # SUBSTANTIVE match). A pattern may still match a noise headline, but we
+        # only surface a non-noise one as Evidence.
         for sig, pattern in _SIGNAL_PATTERNS:
-            matching = [i for i in items if pattern.search(i.get("title", ""))]
+            matching = [i for i in substantive if pattern.search(i.get("title", ""))]
             if not matching:
                 continue
             signals.append(sig)
             evidence.append(_evidence_from_item(_most_recent(matching), sig))
 
+        # COMPLIANCE_NOTED: a recent+relevant, non-noise headline mentioning a
+        # compliance framework / certification (e.g. "FedRAMP High Certification").
+        # High-value GRC interview hook.
+        compliance_matches = [
+            i for i in substantive if _COMPLIANCE_FRAMEWORKS.search(i.get("title", ""))
+        ]
+        if compliance_matches:
+            signals.append(Signal.COMPLIANCE_NOTED)
+            evidence.append(
+                _evidence_from_item(_most_recent(compliance_matches), Signal.COMPLIANCE_NOTED)
+            )
+
         # Catch-all: notable news (acquisitions, launches, partnerships, expansions,
         # fund closes, …) that matches none of the four category patterns above.
-        # Fire RECENT_NEWS for the most-recent recent+relevant item that is NOT
-        # already categorized. If every recent item is categorized (or there are
-        # none), RECENT_NEWS does not fire.
+        # Fire RECENT_NEWS for the most-recent recent+relevant SUBSTANTIVE item that
+        # is NOT already categorized. If every recent item is categorized, noise, or
+        # there are none, RECENT_NEWS does not fire.
         def _is_categorized(item: dict[str, Any]) -> bool:
             title = item.get("title", "")
             return any(pattern.search(title) for _, pattern in _SIGNAL_PATTERNS)
 
-        uncategorized = [i for i in items if not _is_categorized(i)]
+        uncategorized = [i for i in substantive if not _is_categorized(i)]
         if uncategorized:
             signals.append(Signal.RECENT_NEWS)
             evidence.append(_evidence_from_item(_most_recent(uncategorized), Signal.RECENT_NEWS))
