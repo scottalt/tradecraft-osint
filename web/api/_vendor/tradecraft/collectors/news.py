@@ -63,12 +63,21 @@ _SIGNAL_PATTERNS: tuple[tuple[Signal, re.Pattern[str]], ...] = (
 _FINANCIAL_NOISE: re.Pattern[str] = re.compile(
     r"\b(?:"
     r"valuations?|shares?|stocks?|equity|analysts?|zacks|"
-    r"seeking\s+alpha|motley\s+fool|price\s+target|market\s+cap|"
+    r"seeking\s+alpha|motley\s+fool|price\s+target|target\s+price|market[\s-]?cap|"
     r"buybacks?|repurchases?|insider|10b5-1|downgrades?|"
     r"upgrades?\s+rating|(?:buy|hold|sell)\s+rating|dividends?|"
-    r"eps|earnings\s+per\s+share|"
+    r"eps|earnings\s+per\s+share|earnings\s+call|quarterly\s+results|"
+    r"q[1-4]\s+(?:results|earnings)|"
+    r"gurufocus|gf\s+value|fair\s+value|"
+    r"over\s?valued|under\s?valued|outperform|underperform|"
     r"director\s+(?:sells?|buys?)|shares?\s+(?:sold|bought|of)"
     r")\b"
+    r"|p/e\b"
+    r"|\bvs\.?\s+price\b|\bprice\s+\$?\d"
+    r"|\bup\s+\d+(?:\.\d+)?%\s+after\b|\bdown\s+\d+(?:\.\d+)?%"
+    r"|\b\d+(?:\.\d+)?%\s+(?:decline|gain|drop|rise|surge|plunge|jump)\b"
+    r"|\bstocks?\s+to\s+(?:buy|watch)\b"
+    r"|\bwhy\s+.*\bstock\b"
     r"|nyse\s*:|nasdaq\s*:"
     r"|\(\s*(?:nyse|nasdaq|pltr|[a-z]{2,5})\s*:\s*[a-z]{1,6}\s*\)",
     re.IGNORECASE,
@@ -283,13 +292,16 @@ class NewsCollector:
             )
 
         # Catch-all: notable news (acquisitions, launches, partnerships, expansions,
-        # fund closes, …) that matches none of the four category patterns above.
-        # Fire RECENT_NEWS for the most-recent recent+relevant SUBSTANTIVE item that
-        # is NOT already categorized. If every recent item is categorized, noise, or
-        # there are none, RECENT_NEWS does not fire.
+        # fund closes, …) that matches none of the four category patterns above AND
+        # is not a compliance headline (those become the GRC question, not a generic
+        # catch-all). Fire RECENT_NEWS for the most-recent recent+relevant SUBSTANTIVE
+        # item that is NOT already categorized. If every recent item is categorized,
+        # compliance, noise, or there are none, RECENT_NEWS does not fire.
         def _is_categorized(item: dict[str, Any]) -> bool:
             title = item.get("title", "")
-            return any(pattern.search(title) for _, pattern in _SIGNAL_PATTERNS)
+            return any(pattern.search(title) for _, pattern in _SIGNAL_PATTERNS) or (
+                _COMPLIANCE_FRAMEWORKS.search(title) is not None
+            )
 
         uncategorized = [i for i in substantive if not _is_categorized(i)]
         if uncategorized:

@@ -18,6 +18,7 @@ from tradecraft.collectors.news import (
     NewsCollector,
     _apply_recency_filter,
     _apply_relevance_filter,
+    _is_financial_noise,
     _parse_date_iso,
 )
 from tradecraft.config import HttpConfig
@@ -815,3 +816,125 @@ async def test_fedramp_headline_fires_compliance_noted(http) -> None:
     assert ev is not None
     assert ev.summary == "Acme achieves FedRAMP High Certification"
     assert ev.source == "hn"
+
+
+@respx.mock
+async def test_compliance_headline_not_also_recent_news_catchall(http) -> None:
+    """A compliance headline becomes the GRC (COMPLIANCE_NOTED) hook, NOT a generic
+    RECENT_NEWS catch-all. When it is the only substantive item, RECENT_NEWS must
+    not fire on the same headline (Change 2/3)."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent_iso = (today - timedelta(days=2)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme achieves FedRAMP High authorization for its platform",
+                        "url": "https://hn.test/acme-fedramp",
+                        "created_at": recent_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.COMPLIANCE_NOTED in result.signals
+    # The same headline must NOT also surface as a generic RECENT_NEWS catch-all.
+    assert Signal.RECENT_NEWS not in result.signals
+    assert not any(e.signal == Signal.RECENT_NEWS for e in result.evidence)
+
+
+@respx.mock
+async def test_gurufocus_headline_is_financial_noise(http) -> None:
+    """The exact GuruFocus headline from real testing is filtered as financial
+    noise: it must never be selected as RECENT_NEWS Evidence (a substantive
+    headline wins instead), though it stays in the raw items list."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    noise_iso = (today - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z")
+    substantive_iso = (today - timedelta(days=6)).strftime("%Y-%m-%dT00:00:00Z")
+
+    gurufocus = (
+        "A Look at Datadog Inc (DDOG) After 3.0% Decline -- GF Value $186.39 "
+        "vs Price $269.13 - GuruFocus"
+    )
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": gurufocus,
+                        "url": "https://hn.test/datadog-gurufocus",
+                        "created_at": noise_iso,
+                    },
+                    {
+                        "title": "Datadog launches new cloud security monitoring product",
+                        "url": "https://hn.test/datadog-launch",
+                        "created_at": substantive_iso,
+                    },
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Datadog", root_url="https://datadoghq.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    # The GuruFocus headline stays in the raw items list ...
+    titles = {i["title"] for i in result.data["items"]}
+    assert gurufocus in titles
+
+    # ... but is never used as Evidence. The substantive headline wins.
+    assert Signal.RECENT_NEWS in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_NEWS), None)
+    assert ev is not None
+    assert ev.summary == "Datadog launches new cloud security monitoring product"
+    assert all(gurufocus != e.summary for e in result.evidence)
+
+
+@pytest.mark.parametrize(
+    "headline",
+    [
+        "Datadog (DDOG) GF Value vs Price -- GuruFocus",
+        "Stripe Created a New $198,000 Marketing Job target price",
+        "Why Shopify Stock Jumped Today",
+        "Datadog stock down 4.2% after earnings call",
+        "5 Stocks to Buy Right Now",
+        "Snowflake Q3 results beat estimates",
+        "Is CrowdStrike overvalued? P/E suggests caution",
+        "Cloudflare price target raised to $200 by analysts",
+    ],
+)
+def test_financial_noise_patterns(headline: str) -> None:
+    """Round-2 financial-noise patterns match analyst/market-press headlines."""
+    assert _is_financial_noise({"title": headline}) is True
+
+
+@pytest.mark.parametrize(
+    "headline",
+    [
+        "Datadog achieves FedRAMP High authorization",
+        "Acme acquires Foobar to expand its platform",
+        "Cloudflare launches new WAF product for enterprises",
+        "Stripe partners with Visa on payments infrastructure",
+        "Snowflake confirms data breach affecting customers",
+    ],
+)
+def test_financial_noise_does_not_overmatch_substantive(headline: str) -> None:
+    """Genuine security / product / regulatory headlines are NOT flagged as noise."""
+    assert _is_financial_noise({"title": headline}) is False
