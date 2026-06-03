@@ -1,23 +1,12 @@
-import { ClassifiedStamp } from "./components/ClassifiedStamp";
 import { DossierForm } from "./components/DossierForm";
+import { IntelHero } from "./components/hero/IntelHero";
 
 export default function HomePage() {
   return (
-    <main className="max-w-3xl mx-auto px-6 py-12">
-      <header className="border-b-2 border-ink pb-8 mb-10 flex items-start justify-between">
-        <div>
-          <p className="font-typewriter text-xs tracking-widest text-faded-ink mb-2">
-            FILE NO. 0001-A · CLASSIFICATION: PUBLIC
-          </p>
-          <h1 className="font-typewriter text-5xl text-ink mb-2">tradecraft</h1>
-          <p className="font-prose italic text-faded-ink">
-            Recon your future employer before the interview.
-          </p>
-        </div>
-        <ClassifiedStamp label="FIELD REPORT" rotation={-4} variant="red" />
-      </header>
+    <main className="max-w-4xl mx-auto px-6 py-10">
+      <IntelHero />
 
-      <section className="mb-10 font-prose text-ink leading-relaxed">
+      <section className="mb-10 font-prose text-ink leading-relaxed max-w-3xl">
         <p>
           Submit a target organization below. The service will run a small set of public
           reconnaissance routines and return a field dossier — DNS posture, subdomain
