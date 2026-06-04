@@ -164,12 +164,110 @@ body > .page-shell {
   box-shadow: 0 0 10px rgba(143, 206, 117, 0.6);
 }
 
-/* The 3D detective canvas fills the hero's right column. */
-.detective-stage {
+/* ── SVG noir detective ── */
+.svg-detective {
   position: relative;
   z-index: 2;
   width: 100%;
-  height: 380px;
+  max-width: 360px;
+  margin: 0 auto;
+  filter: drop-shadow(0 18px 22px rgba(26, 22, 18, 0.18));
+}
+
+/* lens highlight sweeps across the glass */
+.lens-glint {
+  animation: lens-sweep 5s ease-in-out infinite;
+}
+@keyframes lens-sweep {
+  0%,
+  60% {
+    transform: rotate(28deg) translateX(-26px);
+    opacity: 0;
+  }
+  72% {
+    opacity: 0.55;
+  }
+  84% {
+    transform: rotate(28deg) translateX(34px);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* quick double-blink of the eyes */
+.eyes {
+  animation: eye-blink 5.5s steps(1) infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes eye-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  94%,
+  98% {
+    transform: scaleY(0.15);
+  }
+  96% {
+    transform: scaleY(1);
+  }
+}
+
+/* the magnified fingerprint clue gently pulses */
+.clue {
+  animation: clue-pulse 3.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes clue-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* dust motes drift + twinkle */
+.dust circle {
+  animation: dust-drift 6s ease-in-out infinite;
+}
+.dust circle:nth-child(2) {
+  animation-duration: 7.5s;
+  animation-delay: -2s;
+}
+.dust circle:nth-child(3) {
+  animation-duration: 8.5s;
+  animation-delay: -4s;
+}
+.dust circle:nth-child(4) {
+  animation-duration: 6.8s;
+  animation-delay: -1s;
+}
+@keyframes dust-drift {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translateY(-10px);
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lens-glint,
+  .eyes,
+  .clue,
+  .dust circle {
+    animation: none !important;
+  }
 }
 
 /* ───────────────────────── Cinematic hero ───────────────────────── */

@@ -1,8 +1,8 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { DetectiveModel } from "./DetectiveModel";
 import { LinkGraph } from "./LinkGraph";
+import { SvgDetective } from "./SvgDetective";
 import { Typewriter } from "./Typewriter";
 
 export function IntelHero() {
@@ -66,10 +66,10 @@ export function IntelHero() {
 
         {/* right: the detective working an evidence board (link-graph behind him) */}
         <div className="relative flex min-h-[360px] items-center justify-center">
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-35">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-30">
             <LinkGraph />
           </div>
-          <DetectiveModel />
+          <SvgDetective />
         </div>
       </div>
     </section>
