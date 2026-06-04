@@ -164,6 +164,14 @@ body > .page-shell {
   box-shadow: 0 0 10px rgba(143, 206, 117, 0.6);
 }
 
+/* The 3D detective canvas fills the hero's right column. */
+.detective-stage {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 380px;
+}
+
 /* ───────────────────────── Cinematic hero ───────────────────────── */
 
 .hero-frame {
@@ -173,6 +181,26 @@ body > .page-shell {
   box-shadow:
     6px 6px 0 0 rgba(26, 22, 18, 0.12),
     inset 0 0 60px rgba(26, 22, 18, 0.04);
+}
+
+/* Red corner registration brackets — field-document / targeting-reticle detail. */
+.hero-frame::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.55;
+  --bk: var(--color-stamp-red);
+  background:
+    linear-gradient(var(--bk), var(--bk)) left top / 15px 2px no-repeat,
+    linear-gradient(var(--bk), var(--bk)) left top / 2px 15px no-repeat,
+    linear-gradient(var(--bk), var(--bk)) right top / 15px 2px no-repeat,
+    linear-gradient(var(--bk), var(--bk)) right top / 2px 15px no-repeat,
+    linear-gradient(var(--bk), var(--bk)) left bottom / 15px 2px no-repeat,
+    linear-gradient(var(--bk), var(--bk)) left bottom / 2px 15px no-repeat,
+    linear-gradient(var(--bk), var(--bk)) right bottom / 15px 2px no-repeat,
+    linear-gradient(var(--bk), var(--bk)) right bottom / 2px 15px no-repeat;
 }
 
 /* Slow radar sweep: a rotating conic wedge, masked to a soft circle. */
