@@ -80,7 +80,7 @@ h1, h2, h3 {
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.85;
+  opacity: 0.42;
 }
 
 /* Page content rides above the field. */
@@ -414,8 +414,8 @@ body > .page-shell {
   );
   -webkit-mask: radial-gradient(circle, #000 0%, #000 58%, transparent 70%);
   mask: radial-gradient(circle, #000 0%, #000 58%, transparent 70%);
-  animation: radar-spin 9s linear infinite;
-  opacity: 0.7;
+  animation: radar-spin 12s linear infinite;
+  opacity: 0.4;
 }
 
 @keyframes radar-spin {
