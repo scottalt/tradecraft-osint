@@ -25,6 +25,7 @@ class Signal(StrEnum):
     OPEN_STAGING_SUBDOMAIN = "open_staging_subdomain"
     CERT_EXPIRING_SOON = "cert_expiring_soon"
     EXPOSED_ADMIN_PATH = "exposed_admin_path"
+    TECH_OBSERVED = "tech_observed"
     # company
     RECENT_PRESS_RELEASE = "recent_press_release"
     FOUNDER_TECHNICAL = "founder_technical"
