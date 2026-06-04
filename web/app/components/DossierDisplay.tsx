@@ -68,6 +68,21 @@ export function DossierDisplay({ dossier }: { dossier: Dossier }) {
               },
             ]}
           />
+          {(() => {
+            const observed =
+              (footprint.data.observed_tech as Record<string, string[]>) ?? {};
+            const rows = [
+              { label: "CDN / WAF", value: (observed.cdn_waf ?? []).join(", ") },
+              { label: "CMS / platform", value: (observed.cms ?? []).join(", ") },
+              { label: "Server", value: (observed.server ?? []).join(", ") },
+            ].filter((r) => r.value);
+            return rows.length ? (
+              <>
+                <SectionHeader index="01b" label="TECH OBSERVED" />
+                <DataTable rows={rows} />
+              </>
+            ) : null;
+          })()}
         </>
       )}
 

@@ -19,6 +19,7 @@ from tradecraft.collectors.news import (
     _apply_recency_filter,
     _apply_relevance_filter,
     _is_financial_noise,
+    _is_interview_relevant,
     _parse_date_iso,
 )
 from tradecraft.config import HttpConfig
@@ -938,3 +939,182 @@ def test_financial_noise_patterns(headline: str) -> None:
 def test_financial_noise_does_not_overmatch_substantive(headline: str) -> None:
     """Genuine security / product / regulatory headlines are NOT flagged as noise."""
     assert _is_financial_noise({"title": headline}) is False
+
+
+# ---------------------------------------------------------------------------
+# Round 3: interview-relevance filter for the RECENT_NEWS catch-all
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "headline",
+    [
+        # institutional-holder / stock noise leaks (now caught by _FINANCIAL_NOISE)
+        "Norges Bank Acquires New Stake in Datadog, Inc. $DDOG - MarketBeat",
+        "Vanguard Group Inc. boosts holdings in Cloudflare",
+        "Hedge fund increases position in Stripe",
+        "Renaissance Technologies buys shares of Snowflake",
+    ],
+)
+def test_institutional_holder_noise_is_financial_noise(headline: str) -> None:
+    """Institutional-holder / 13F / MarketBeat stock chatter is financial noise."""
+    assert _is_financial_noise({"title": headline}) is True
+
+
+@pytest.mark.parametrize(
+    "headline",
+    [
+        # HR/marketing fluff — not noise, but not interview-relevant either
+        "Stripe Just Created a New $198,000 Marketing Job—and It's "
+        "Borrowed from Palantir's Playbook",
+        "Acme named one of the Best Places to Work 2026",
+        "Acme sponsors local charity 5K run",
+        "10 productivity tips from Acme's design team",
+    ],
+)
+def test_hr_and_fluff_not_interview_relevant(headline: str) -> None:
+    """HR/marketing-job, awards, sponsorship, and listicle headlines are not
+    interview-relevant (so they never become the RECENT_NEWS catch-all)."""
+    assert _is_interview_relevant({"title": headline}) is False
+
+
+@pytest.mark.parametrize(
+    "headline",
+    [
+        "Acme launches zero-trust platform for hospitals",
+        "Acme partners with AWS on GovCloud",
+        "Acme acquires Foobar Inc to expand platform",
+        "Acme confirms data breach affecting customers",
+        "Acme raises $200M Series D",
+        "Acme achieves FedRAMP High authorization",
+        "Acme wins $50M government contract",
+        "Acme faces SEC investigation over disclosures",
+    ],
+)
+def test_genuine_news_is_interview_relevant(headline: str) -> None:
+    """Genuine security/funding/M&A/compliance/product/legal headlines ARE
+    interview-relevant."""
+    assert _is_interview_relevant({"title": headline}) is True
+
+
+@respx.mock
+async def test_marketing_job_headline_not_used_as_recent_news(http) -> None:
+    """The real 'Marketing Job' HR headline must NOT become RECENT_NEWS evidence.
+    When it is the only uncategorized item, RECENT_NEWS must not fire at all."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent_iso = (today - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z")
+
+    marketing = (
+        "Stripe Just Created a New $198,000 Marketing Job—and It's "
+        "Borrowed from Palantir's Playbook"
+    )
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": marketing,
+                        "url": "https://hn.test/stripe-marketing",
+                        "created_at": recent_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Stripe", root_url="https://stripe.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    # Headline stays in raw items but never becomes evidence.
+    titles = {i["title"] for i in result.data["items"]}
+    assert marketing in titles
+    assert Signal.RECENT_NEWS not in result.signals
+    assert not any(e.signal == Signal.RECENT_NEWS for e in result.evidence)
+
+
+@respx.mock
+async def test_norges_bank_stake_headline_not_used_as_recent_news(http) -> None:
+    """The real 'Norges Bank Acquires New Stake ... $DDOG - MarketBeat' headline
+    must NOT become RECENT_NEWS evidence (institutional-holder stock noise)."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    noise_iso = (today - timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z")
+    substantive_iso = (today - timedelta(days=6)).strftime("%Y-%m-%dT00:00:00Z")
+
+    norges = "Norges Bank Acquires New Stake in Datadog, Inc. $DDOG - MarketBeat"
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": norges,
+                        "url": "https://hn.test/datadog-norges",
+                        "created_at": noise_iso,
+                    },
+                    {
+                        "title": "Datadog launches cloud security workload protection",
+                        "url": "https://hn.test/datadog-launch",
+                        "created_at": substantive_iso,
+                    },
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Datadog", root_url="https://datadoghq.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    titles = {i["title"] for i in result.data["items"]}
+    assert norges in titles  # still in raw items
+    # The substantive launch headline wins; the stake headline is never evidence.
+    assert Signal.RECENT_NEWS in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_NEWS), None)
+    assert ev is not None
+    assert ev.summary == "Datadog launches cloud security workload protection"
+    assert all(norges != e.summary for e in result.evidence)
+
+
+@respx.mock
+async def test_relevant_uncategorized_headline_fires_recent_news(http) -> None:
+    """A genuinely relevant uncategorized headline (partnership/launch) still
+    fires RECENT_NEWS."""
+    client, cache = http
+    today = datetime.now(tz=UTC)
+    recent_iso = (today - timedelta(days=2)).strftime("%Y-%m-%dT00:00:00Z")
+
+    respx.get("https://news.google.com/rss/search").mock(
+        return_value=httpx.Response(200, text="<rss><channel></channel></rss>")
+    )
+    respx.get("https://hn.algolia.com/api/v1/search").mock(
+        return_value=httpx.Response(
+            200,
+            json=_make_hn_json(
+                [
+                    {
+                        "title": "Acme launches zero-trust platform for hospitals",
+                        "url": "https://hn.test/acme-zerotrust",
+                        "created_at": recent_iso,
+                    }
+                ]
+            ),
+        )
+    )
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await NewsCollector().run(ctx)
+
+    assert Signal.RECENT_NEWS in result.signals
+    ev = next((e for e in result.evidence if e.signal == Signal.RECENT_NEWS), None)
+    assert ev is not None
+    assert ev.summary == "Acme launches zero-trust platform for hospitals"

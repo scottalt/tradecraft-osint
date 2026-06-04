@@ -137,6 +137,96 @@ async def test_staging_signal_detection(
 
 
 @respx.mock
+async def test_fingerprints_cloudflare_from_cf_ray_header(http, fixtures) -> None:
+    client, cache = http
+    headers = {**fixtures["headers"], "cf-ray": "abc123-LHR", "server": "cloudflare"}
+    respx.get("https://crt.sh/").mock(return_value=httpx.Response(200, json=[]))
+    respx.get("https://acme.com/").mock(
+        return_value=httpx.Response(200, text="<html>hi</html>", headers=headers)
+    )
+    respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    respx.get("https://acme.com/sitemap.xml").mock(return_value=httpx.Response(404))
+
+    monkey_dns = AsyncMock(return_value={"A": [], "MX": [], "TXT": []})
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await FootprintCollector(_dns_lookup=monkey_dns).run(ctx)
+
+    observed = result.data["observed_tech"]
+    assert "Cloudflare" in observed["cdn_waf"]  # type: ignore[index]
+    assert Signal.TECH_OBSERVED in result.signals
+    ev = next(e for e in result.evidence if e.signal == Signal.TECH_OBSERVED)
+    assert "cloudflare" in ev.summary.lower()
+    assert ev.source == "footprint"
+    assert ev.url == "https://acme.com/"
+
+
+@respx.mock
+async def test_fingerprints_wordpress_from_body(http) -> None:
+    client, cache = http
+    body = "<html><head></head><body><img src='/wp-content/uploads/x.png'></body></html>"
+    respx.get("https://crt.sh/").mock(return_value=httpx.Response(200, json=[]))
+    respx.get("https://acme.com/").mock(
+        return_value=httpx.Response(200, text=body, headers={"server": "Apache"})
+    )
+    respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    respx.get("https://acme.com/sitemap.xml").mock(return_value=httpx.Response(404))
+
+    monkey_dns = AsyncMock(return_value={"A": [], "MX": [], "TXT": []})
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await FootprintCollector(_dns_lookup=monkey_dns).run(ctx)
+
+    observed = result.data["observed_tech"]
+    assert "WordPress" in observed["cms"]  # type: ignore[index]
+    assert Signal.TECH_OBSERVED in result.signals
+
+
+@respx.mock
+async def test_no_security_tech_match_no_signal(http) -> None:
+    # A bare server header is informational only — no CDN/WAF or CMS detected,
+    # so no TECH_OBSERVED signal/evidence fires.
+    client, cache = http
+    respx.get("https://crt.sh/").mock(return_value=httpx.Response(200, json=[]))
+    respx.get("https://acme.com/").mock(
+        return_value=httpx.Response(200, text="<html>plain</html>", headers={"server": "Apache"})
+    )
+    respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    respx.get("https://acme.com/sitemap.xml").mock(return_value=httpx.Response(404))
+
+    monkey_dns = AsyncMock(return_value={"A": [], "MX": [], "TXT": []})
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await FootprintCollector(_dns_lookup=monkey_dns).run(ctx)
+
+    observed = result.data["observed_tech"]
+    assert "cdn_waf" not in observed  # type: ignore[operator]
+    assert "cms" not in observed  # type: ignore[operator]
+    assert Signal.TECH_OBSERVED not in result.signals
+    assert not any(e.signal == Signal.TECH_OBSERVED for e in result.evidence)
+
+
+@respx.mock
+async def test_no_tech_at_all_observed_tech_empty(http) -> None:
+    # No server header and no body signatures -> observed_tech is empty.
+    client, cache = http
+    respx.get("https://crt.sh/").mock(return_value=httpx.Response(200, json=[]))
+    respx.get("https://acme.com/").mock(
+        return_value=httpx.Response(200, text="<html>plain</html>", headers={})
+    )
+    respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    respx.get("https://acme.com/sitemap.xml").mock(return_value=httpx.Response(404))
+
+    monkey_dns = AsyncMock(return_value={"A": [], "MX": [], "TXT": []})
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await FootprintCollector(_dns_lookup=monkey_dns).run(ctx)
+
+    assert not result.data["observed_tech"]
+    assert Signal.TECH_OBSERVED not in result.signals
+
+
+@respx.mock
 async def test_csp_present_no_signal(http, fixtures) -> None:
     client, cache = http
     headers_with_csp = {**fixtures["headers"], "content-security-policy": "default-src 'self'"}

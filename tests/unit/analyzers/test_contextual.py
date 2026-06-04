@@ -338,3 +338,52 @@ def test_generic_fallback_with_industry_label_uses_you_operate_in() -> None:
     qs = contextual_questions(_findings(evidence=[_industry_ev("Floristry")]))
     assert len(qs) == 1
     assert qs[0].text.startswith("You operate in Floristry —")
+
+
+# ---- observed-tech (TECH_OBSERVED) ----
+
+
+def _tech_ev(summary: str) -> Evidence:
+    return Evidence(
+        signal=Signal.TECH_OBSERVED,
+        summary=summary,
+        url="https://acme.com/",
+        source="footprint",
+    )
+
+
+def test_observed_tech_cloudflare_emits_origin_waf_question() -> None:
+    ev = _tech_ev("behind Cloudflare (CDN/WAF)")
+    qs = contextual_questions(_findings(evidence=[ev]))
+    assert len(qs) == 1
+    q = qs[0]
+    assert "Cloudflare" in q.text
+    assert "origin-IP protection" in q.text
+    assert "WAF" in q.text
+    assert "bot" in q.text
+    assert q.confidence == "high"
+    assert q.evidence is ev
+    assert q.source_collector == "footprint"
+
+
+def test_observed_tech_wordpress_emits_cms_question() -> None:
+    ev = _tech_ev("built on WordPress")
+    qs = contextual_questions(_findings(evidence=[ev]))
+    assert len(qs) == 1
+    assert "supply-chain" in qs[0].text
+
+
+def test_observed_tech_capped_at_one() -> None:
+    ev = _tech_ev("behind Cloudflare (CDN/WAF); built on WordPress")
+    qs = contextual_questions(_findings(evidence=[ev]))
+    tech_qs = [q for q in qs if q.evidence_signal == Signal.TECH_OBSERVED]
+    assert len(tech_qs) == 1
+    # CDN/WAF angle wins (higher priority than CMS).
+    assert "origin-IP protection" in tech_qs[0].text
+
+
+def test_observed_tech_non_cyber_role_still_emits() -> None:
+    ev = _tech_ev("behind Cloudflare (CDN/WAF)")
+    qs = contextual_questions(_findings(role=Role.SWE, evidence=[ev]))
+    assert len(qs) == 1
+    assert "origin-IP protection" in qs[0].text
