@@ -79,9 +79,83 @@ _FINANCIAL_NOISE: re.Pattern[str] = re.compile(
     r"|\bstocks?\s+to\s+(?:buy|watch)\b"
     r"|\bwhy\s+.*\bstock\b"
     r"|nyse\s*:|nasdaq\s*:"
-    r"|\(\s*(?:nyse|nasdaq|pltr|[a-z]{2,5})\s*:\s*[a-z]{1,6}\s*\)",
+    r"|\(\s*(?:nyse|nasdaq|pltr|[a-z]{2,5})\s*:\s*[a-z]{1,6}\s*\)"
+    # --- Round 3: institutional-holder / market-press leaks ---
+    # "acquires (a) (new) stake", "buys/reduces/trims/boosts ... stake in"
+    r"|\b(?:acquires?|buys?|sells?|reduces?|trims?|boosts?|raises?|lowers?|cuts?)\s+"
+    r"(?:a\s+)?(?:new\s+)?stake\b"
+    r"|\bstake\s+in\b"
+    r"|\bmarketbeat\b"
+    r"|\bnorges\s+bank\b"
+    r"|\binstitutional\s+(?:investors?|holders?|ownership)\b"
+    r"|\b13[fg]\b"
+    r"|\bhedge\s+fund\b"
+    # "holdings increased/decreased/..." and "boosts/trims/... holdings (in)"
+    r"|\bholdings?\s+(?:increased|decreased|trimmed|boosted|cut|lowered|raised)\b"
+    r"|\b(?:increases?|decreases?|trims?|boosts?|cuts?|lowers?|raises?|reduces?|grows?)"
+    r"\s+(?:its\s+|their\s+)?(?:stake|holdings?|position|shares?)\b"
+    # "shares of <X>", "shares in <X>", "position in <X>"
+    r"|\bshares?\s+(?:of|in)\b"
+    r"|\bposition\s+in\b"
+    # bare ticker like "$DDOG", "$PLTR" (1-6 uppercase letters, word-boundary)
+    r"|\$[A-Z]{1,6}\b",
     re.IGNORECASE,
 )
+
+
+# Interview-relevance filter (positive). A headline is worth raising in an
+# interview only if it touches one of these topics: security incidents, funding,
+# M&A, layoffs/restructuring, leadership change, compliance/certification, product
+# launches, partnerships, expansion, legal/regulatory action, outages, or
+# contract wins. HR/marketing-job postings, "best places to work" awards,
+# sponsorships, listicles, and stock-analyst chatter do NOT match — so they never
+# become the RECENT_NEWS catch-all question.
+#
+# NOTE: case-insensitive, so the bare-ticker noise pattern above ($DDOG) is caught
+# by _FINANCIAL_NOISE first; here we only gate the *positive* topic match.
+_INTERVIEW_RELEVANT: re.Pattern[str] = re.compile(
+    r"\b(?:"
+    # security / incidents
+    r"breach|incident|ransomware|vulnerabilit(?:y|ies)|hacked|exploit|"
+    r"data\s+leak|exposed|cyber.{0,8}attack|"
+    # funding
+    r"funding|raises?|raised|series\s+[a-h]\b|funding\s+round|seed\s+round|"
+    # M&A
+    r"acquisitions?|acquires?|to\s+acquire|mergers?|merges?|buys\s+|"
+    # workforce
+    r"layoffs?|restructuring|workforce\s+reduction|job\s+cuts?|headcount\s+cut|"
+    # leadership
+    r"(?:ceo|ciso|cto|cfo|coo|cso)\s+(?:appointed|named|hire[ds]?|steps\s+down|departs|resigns?)|"
+    r"new\s+(?:ceo|ciso|cto|cfo|coo|cso)|appoints?\s+(?:ceo|ciso|cto|cfo|coo|cso)|"
+    r"names?\s+(?:new\s+)?(?:ceo|ciso|cto|cfo|coo|cso)|leadership\s+(?:change|shake)|"
+    # compliance / certification
+    r"fedramp|soc\s*2|iso\s*27001|hipaa|pci|compliance|certification|certified|"
+    r"authorization|audit|"
+    # product
+    r"launch(?:es|ed|ing)?|unveils?|releases?|introduces?|rolls?\s+out|debuts?|"
+    r"announces?\s+(?:new\s+)?(?:product|platform|feature|tool|service)|"
+    # partnership / integration
+    r"partners?\s+with|partnership|integration|collaborat|"
+    # expansion
+    r"expands?|expansion|opens?\s+(?:office|hq|headquarters)|new\s+market|enters?\s+|"
+    # legal / regulatory
+    r"lawsuits?|sued|settlements?|fines?|penalt(?:y|ies)|"
+    r"regulators?|regulatory|sec\s+probe|antitrust|investigations?|sanctions?|"
+    # outage / disruption
+    r"outages?|disruptions?|breach\s+of\s+contract|"
+    # contract wins
+    r"(?:awarded|wins?|secures?)\s+(?:a\s+)?(?:contract|deal|approval)|"
+    r"government\s+contract"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _is_interview_relevant(item: dict[str, Any]) -> bool:
+    """An item is interview-relevant iff it matches a relevant topic AND is not
+    financial/market-press noise."""
+    title = item.get("title", "")
+    return _INTERVIEW_RELEVANT.search(title) is not None and _FINANCIAL_NOISE.search(title) is None
 
 
 # Compliance frameworks / certifications. A headline (or page) mentioning one is a
@@ -303,7 +377,12 @@ class NewsCollector:
                 _COMPLIANCE_FRAMEWORKS.search(title) is not None
             )
 
-        uncategorized = [i for i in substantive if not _is_categorized(i)]
+        # Only an interview-relevant uncategorized item may become the catch-all.
+        # If none qualifies, RECENT_NEWS does NOT fire — better no catch-all than
+        # an irrelevant one (HR/marketing-job postings, awards, listicles, etc.).
+        uncategorized = [
+            i for i in substantive if not _is_categorized(i) and _is_interview_relevant(i)
+        ]
         if uncategorized:
             signals.append(Signal.RECENT_NEWS)
             evidence.append(_evidence_from_item(_most_recent(uncategorized), Signal.RECENT_NEWS))
