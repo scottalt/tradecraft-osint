@@ -12,6 +12,7 @@ export function DossierForm() {
   const [rootUrl, setRootUrl] = useState("");
   const [jobUrl, setJobUrl] = useState("");
   const [company, setCompany] = useState("");
+  const [role, setRole] = useState("cybersecurity");
   const [state, setState] = useState<FormState>("idle");
   const [dossier, setDossier] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +74,7 @@ export function DossierForm() {
           root_url: rootUrl.trim(),
           job_url: jobUrl.trim() || null,
           company: company.trim() || null,
+          role,
         }),
       });
       if (!res.ok) {
@@ -141,6 +143,26 @@ export function DossierForm() {
             onChange={(e) => setCompany(e.target.value)}
             className="w-full border-b-2 border-ink bg-transparent font-data text-lg py-2 focus:outline-none focus:border-stamp-red"
           />
+        </div>
+        <div>
+          <label className="font-typewriter text-sm uppercase tracking-wider block mb-2 text-ink">
+            ROLE: interviewing for
+          </label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-full border-b-2 border-ink bg-paper font-data text-lg py-2 focus:outline-none focus:border-stamp-red cursor-pointer"
+          >
+            <option value="cybersecurity">Cybersecurity / security engineering</option>
+            <option value="devops">DevOps / SRE / platform</option>
+            <option value="swe">Software engineering</option>
+            <option value="data">Data / ML</option>
+            <option value="eng-leadership">Engineering leadership</option>
+            <option value="generic">General / other</option>
+          </select>
+          <p className="font-prose text-xs text-faded-ink italic mt-1">
+            Questions are tailored to this discipline. Coverage is deepest for cybersecurity.
+          </p>
         </div>
         <div className="flex items-center gap-6 pt-4">
           <button

@@ -36,7 +36,7 @@ export function SvgDetective() {
             <stop offset="100%" stopColor="#fff1d4" stopOpacity="0" />
           </radialGradient>
           <clipPath id="lensClip">
-            <circle cx="208" cy="206" r="23" />
+            <circle cx="212" cy="198" r="23" />
           </clipPath>
         </defs>
 
@@ -133,38 +133,44 @@ export function SvgDetective() {
             transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
             style={{ transformOrigin: "172px 170px" }}
           >
-            {/* sleeve */}
+            {/* sleeve reaching forward */}
             <path
-              d="M168 162 C188 162 206 176 206 196 L188 206 C184 190 176 180 162 180 Z"
+              d="M166 160 C186 157 205 168 210 187 L191 197 C186 181 178 173 162 178 Z"
               fill="url(#coat)"
             />
-            {/* cuff + hand */}
-            <rect x="184" y="196" width="20" height="12" rx="4" transform="rotate(34 194 202)" fill="#16110b" />
-            <circle cx="196" cy="216" r="8" fill="#e6cfa8" />
+            <path d="M166 160 C176 159 188 162 196 172 L188 184 C182 174 174 172 164 176 Z" fill="#000" opacity="0.14" />
+            {/* cuff */}
+            <path d="M184 188 l20 9 l-7 15 l-20 -9 Z" fill="#16110b" />
+            {/* hand gripping the handle */}
+            <circle cx="184" cy="221" r="8.5" fill="#e7d0aa" />
+            <path d="M177 216 q7 -3 13 2" stroke="#c7a87a" strokeWidth="2" fill="none" strokeLinecap="round" />
 
-            {/* magnifier handle */}
-            <line x1="198" y1="222" x2="180" y2="240" stroke="#7a5a32" strokeWidth="7" strokeLinecap="round" />
-            <line x1="198" y1="222" x2="180" y2="240" stroke="#caa64a" strokeWidth="3" strokeLinecap="round" />
+            {/* handle: attaches to the ring's lower-left, runs into the hand */}
+            <line x1="193" y1="213" x2="176" y2="229" stroke="#241a0f" strokeWidth="9" strokeLinecap="round" />
+            <line x1="193" y1="213" x2="176" y2="229" stroke="#caa64a" strokeWidth="4.4" strokeLinecap="round" />
+            <line x1="192" y1="212" x2="178" y2="226" stroke="#ecd9a0" strokeWidth="1.5" strokeLinecap="round" />
 
-            {/* lens */}
-            <circle cx="208" cy="206" r="23" fill="url(#lens)" />
-            {/* magnified clue: a little fingerprint */}
+            {/* lens glass */}
+            <circle cx="212" cy="198" r="24" fill="url(#lens)" />
+            {/* magnified fingerprint clue */}
             <g clipPath="url(#lensClip)" className="clue">
-              <g fill="none" stroke="#1a3a5c" strokeWidth="1.4" opacity="0.7">
-                <path d="M200 214 q8 -12 18 -2" />
-                <path d="M201 209 q9 -12 17 -1" />
-                <path d="M203 204 q7 -9 14 -1" />
-                <path d="M205 199 q5 -6 10 0" />
+              <g fill="none" stroke="#1a3a5c" strokeWidth="1.5" opacity="0.75">
+                <path d="M203 207 q9 -13 19 -2" />
+                <path d="M204 201 q10 -13 18 -1" />
+                <path d="M206 196 q8 -10 15 -1" />
+                <path d="M208 191 q5 -6 10 0" />
               </g>
             </g>
             {/* lens glint sweep */}
             <g clipPath="url(#lensClip)">
-              <rect className="lens-glint" x="176" y="180" width="14" height="60" rx="6" fill="#ffffff" opacity="0.5" transform="rotate(28 208 206)" />
+              <rect className="lens-glint" x="180" y="172" width="15" height="62" rx="7" fill="#ffffff" opacity="0.5" transform="rotate(28 212 198)" />
             </g>
-            {/* brass ring */}
-            <circle cx="208" cy="206" r="23" fill="none" stroke="#3a2c1c" strokeWidth="9" />
-            <circle cx="208" cy="206" r="23" fill="none" stroke="#caa64a" strokeWidth="4.5" />
-            <circle cx="208" cy="206" r="23" fill="none" stroke="#e9d49a" strokeWidth="1.4" />
+            {/* bright crescent gloss on the glass */}
+            <path d="M196 189 q7 -11 19 -11" stroke="#ffffff" strokeWidth="3" fill="none" strokeLinecap="round" opacity="0.5" />
+            {/* brass double ring */}
+            <circle cx="212" cy="198" r="24" fill="none" stroke="#241a0f" strokeWidth="10" />
+            <circle cx="212" cy="198" r="24" fill="none" stroke="#caa64a" strokeWidth="5" />
+            <circle cx="212" cy="198" r="24" fill="none" stroke="#ecd9a0" strokeWidth="1.6" />
           </motion.g>
         </motion.g>
       </svg>

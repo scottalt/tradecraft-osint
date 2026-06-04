@@ -110,11 +110,17 @@ async def _run(payload: dict) -> str:
         parts = host.split(".")
         company_name = parts[-2].capitalize() if len(parts) >= 2 else host
 
+    # Tailor the questions to the interview role; default to cybersecurity.
+    try:
+        role = Role(str(payload.get("role") or "cybersecurity").lower())
+    except ValueError:
+        role = Role.CYBERSECURITY
+
     target = Target(
         company_name=company_name,
         root_url=root_url,
         job_url=job_url,
-        role=Role.CYBERSECURITY,
+        role=role,
     )
 
     # Use an in-memory ephemeral cache per request — no persistence in hosted mode.
