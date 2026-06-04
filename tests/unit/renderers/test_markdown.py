@@ -430,3 +430,49 @@ def test_md_density_note_not_shown_for_empty_questions() -> None:
     md = render_markdown(_simple_findings(), [])
     assert "Limited recent public material" not in md
     assert "No heuristic-driven questions generated" in md
+
+
+def test_key_people_and_vendors_sections() -> None:
+    """Leadership (business) and vendors (footprint) render their own sections."""
+    target = Target(company_name="Acme Corp", root_url="https://acme.com")
+    findings = Findings(
+        target=target,
+        results=[
+            CollectorResult(
+                name="footprint",
+                data={
+                    "host": "acme.com",
+                    "vendors": ["Okta", "Microsoft 365", "Mimecast (email security)"],
+                },
+                signals=[Signal.VENDOR_STACK],
+                errors=[],
+                duration_ms=10,
+            ),
+            CollectorResult(
+                name="business",
+                data={
+                    "leadership": [
+                        {"name": "Matthew Prince", "role": "Co-founder, chairman & CEO"},
+                        {"name": "Michelle Zatlyn", "role": "Co-founder, president & COO"},
+                    ],
+                },
+                signals=[Signal.LEADERSHIP_IDENTIFIED],
+                errors=[],
+                duration_ms=10,
+            ),
+        ],
+    )
+    md = render_markdown(findings, [])
+    assert "## Key people" in md
+    assert "Matthew Prince — Co-founder, chairman & CEO" in md
+    assert "Michelle Zatlyn — Co-founder, president & COO" in md
+    assert "## Vendor relationships (from DNS)" in md
+    assert "- Okta" in md
+    assert "- Mimecast (email security)" in md
+
+
+def test_key_people_and_vendors_omitted_when_absent() -> None:
+    findings = _findings_full()
+    md = render_markdown(findings, [])
+    assert "## Key people" not in md
+    assert "## Vendor relationships (from DNS)" not in md

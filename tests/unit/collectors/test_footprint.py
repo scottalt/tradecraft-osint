@@ -244,3 +244,95 @@ async def test_csp_present_no_signal(http, fixtures) -> None:
     result = await collector.run(ctx)
 
     assert Signal.MISSING_CSP not in result.signals
+
+
+@respx.mock
+async def test_vendor_fingerprint_from_dns(http, fixtures) -> None:
+    """TXT (Google/MS/Atlassian) + MX (Mimecast) -> vendors + VENDOR_STACK."""
+    client, cache = http
+    respx.get("https://crt.sh/").mock(return_value=httpx.Response(200, json=[]))
+    respx.get("https://acme.com/").mock(
+        return_value=httpx.Response(200, text="<html>hi</html>", headers=fixtures["headers"])
+    )
+    respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    respx.get("https://acme.com/sitemap.xml").mock(return_value=httpx.Response(404))
+
+    dns_records = {
+        "A": ["1.2.3.4"],
+        "MX": ["10 acme-com.mail.protection.mimecast.com."],
+        "TXT": [
+            '"google-site-verification=abc123"',
+            '"MS=ms12345678"',
+            '"atlassian-domain-verification=xyz"',
+            '"v=spf1 include:_spf.google.com ~all"',
+        ],
+    }
+    monkey_dns = AsyncMock(return_value=dns_records)
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    collector = FootprintCollector(_dns_lookup=monkey_dns)
+    result = await collector.run(ctx)
+
+    vendors = result.data["vendors"]
+    assert "Google Workspace" in vendors
+    assert "Microsoft 365" in vendors
+    assert "Atlassian" in vendors
+    assert "Mimecast (email security)" in vendors
+    assert Signal.VENDOR_STACK in result.signals
+
+    ev = next(e for e in result.evidence if e.signal == Signal.VENDOR_STACK)
+    assert "DNS reveals:" in ev.summary
+    assert "Atlassian" in ev.summary
+    assert ev.source == "footprint"
+
+
+@respx.mock
+async def test_single_email_security_vendor_fires_signal(http, fixtures) -> None:
+    """A single email-security vendor (no other markers) is enough to fire VENDOR_STACK."""
+    client, cache = http
+    respx.get("https://crt.sh/").mock(return_value=httpx.Response(200, json=[]))
+    respx.get("https://acme.com/").mock(
+        return_value=httpx.Response(200, text="<html>hi</html>", headers=fixtures["headers"])
+    )
+    respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    respx.get("https://acme.com/sitemap.xml").mock(return_value=httpx.Response(404))
+
+    dns_records = {
+        "A": ["1.2.3.4"],
+        "MX": ["10 acme.mail.pphosted.com."],
+        "TXT": [],
+    }
+    monkey_dns = AsyncMock(return_value=dns_records)
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    collector = FootprintCollector(_dns_lookup=monkey_dns)
+    result = await collector.run(ctx)
+
+    assert "Proofpoint (email security)" in result.data["vendors"]
+    assert Signal.VENDOR_STACK in result.signals
+
+
+@respx.mock
+async def test_no_vendor_stack_under_threshold(http, fixtures) -> None:
+    """A single non-email-security vendor -> no VENDOR_STACK signal."""
+    client, cache = http
+    respx.get("https://crt.sh/").mock(return_value=httpx.Response(200, json=[]))
+    respx.get("https://acme.com/").mock(
+        return_value=httpx.Response(200, text="<html>hi</html>", headers=fixtures["headers"])
+    )
+    respx.get("https://acme.com/robots.txt").mock(return_value=httpx.Response(404))
+    respx.get("https://acme.com/sitemap.xml").mock(return_value=httpx.Response(404))
+
+    dns_records = {
+        "A": ["1.2.3.4"],
+        "MX": [],
+        "TXT": ['"docusign=abc"'],
+    }
+    monkey_dns = AsyncMock(return_value=dns_records)
+    target = Target(company_name="Acme", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    collector = FootprintCollector(_dns_lookup=monkey_dns)
+    result = await collector.run(ctx)
+
+    assert result.data["vendors"] == ["DocuSign"]
+    assert Signal.VENDOR_STACK not in result.signals

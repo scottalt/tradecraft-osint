@@ -627,10 +627,87 @@ def _observed_tech_questions(findings: Findings) -> list[Question]:
     ]
 
 
+def _leadership_questions(findings: Findings) -> list[Question]:
+    """One cited question from the LEADERSHIP_IDENTIFIED evidence.
+
+    Cyber framing asks who the security function reports to and how risk
+    escalates; the generic framing asks how hands-on leadership is with
+    engineering. Capped at one question.
+    """
+    ev = findings.evidence_for(Signal.LEADERSHIP_IDENTIFIED)
+    if ev is None:
+        return []
+
+    role = findings.target.role
+    is_cyber = role == Role.CYBERSECURITY
+    if is_cyber:
+        q_text = (
+            f"Your leadership team includes {ev.summary} — who does the security function "
+            "ultimately report to (CISO/CTO/CIO), and how does security risk get escalated "
+            "to that level?"
+        )
+    else:
+        q_text = (
+            f"Your leadership team includes {ev.summary} — how hands-on is leadership with "
+            "engineering priorities and the technical roadmap?"
+        )
+
+    return [
+        Question(
+            text=q_text,
+            confidence="high",
+            role_tags={role},
+            evidence_signal=ev.signal,
+            source_collector="wikipedia",
+            evidence=ev,
+        )
+    ]
+
+
+def _vendor_questions(findings: Findings) -> list[Question]:
+    """One cited question from the VENDOR_STACK evidence.
+
+    Cyber framing asks about third-party/SaaS risk management (SSO, vendor
+    reviews, offboarding); the generic framing asks about managing the
+    integration/operational surface. Capped at one question.
+    """
+    ev = findings.evidence_for(Signal.VENDOR_STACK)
+    if ev is None:
+        return []
+
+    role = findings.target.role
+    is_cyber = role == Role.CYBERSECURITY
+    if is_cyber:
+        q_text = (
+            f"Your DNS footprint points to {ev.summary} — how does the security team manage "
+            "third-party/SaaS risk: SSO/identity, vendor security reviews, and offboarding?"
+        )
+    else:
+        q_text = (
+            f"Your DNS footprint points to {ev.summary} — how does the team manage its "
+            "third-party/SaaS integrations and the operational surface they add?"
+        )
+
+    return [
+        Question(
+            text=q_text,
+            confidence="high",
+            role_tags={role},
+            evidence_signal=ev.signal,
+            source_collector="footprint",
+            evidence=ev,
+        )
+    ]
+
+
 def contextual_questions(findings: Findings) -> list[Question]:
-    """Industry + JD-tech + observed-tech questions, evidence-backed, confidence='high'."""
+    """Industry + JD-tech + observed-tech + leadership + vendor questions.
+
+    All evidence-backed and confidence='high'."""
     return (
         _industry_questions(findings)
         + _jobstack_questions(findings)
         + _observed_tech_questions(findings)
+        + _leadership_questions(findings)
+        + _vendor_questions(findings)
     )

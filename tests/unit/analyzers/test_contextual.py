@@ -387,3 +387,95 @@ def test_observed_tech_non_cyber_role_still_emits() -> None:
     qs = contextual_questions(_findings(role=Role.SWE, evidence=[ev]))
     assert len(qs) == 1
     assert "origin-IP protection" in qs[0].text
+
+
+# ---- leadership ----
+
+
+def _leadership_ev(summary: str) -> Evidence:
+    return Evidence(
+        signal=Signal.LEADERSHIP_IDENTIFIED,
+        summary=summary,
+        url="https://en.wikipedia.org/wiki/Acme",
+        source="wikipedia",
+    )
+
+
+def test_leadership_question_cyber() -> None:
+    ev = _leadership_ev("CEO Matthew Prince; co-founder Michelle Zatlyn")
+    qs = contextual_questions(_findings(role=Role.CYBERSECURITY, evidence=[ev]))
+    assert len(qs) == 1
+    q = qs[0]
+    assert "CEO Matthew Prince" in q.text
+    assert "report to" in q.text
+    assert q.confidence == "high"
+    assert q.evidence is ev
+    assert q.source_collector == "wikipedia"
+
+
+def test_leadership_question_generic() -> None:
+    ev = _leadership_ev("CEO Matthew Prince; co-founder Michelle Zatlyn")
+    qs = contextual_questions(_findings(role=Role.GENERIC, evidence=[ev]))
+    assert len(qs) == 1
+    q = qs[0]
+    assert "CEO Matthew Prince" in q.text
+    assert "how hands-on is leadership" in q.text
+    assert "report to" not in q.text
+
+
+def test_no_leadership_question_without_evidence() -> None:
+    qs = contextual_questions(_findings(evidence=[]))
+    assert not any(q.evidence_signal == Signal.LEADERSHIP_IDENTIFIED for q in qs)
+
+
+# ---- vendor stack ----
+
+
+def _vendor_ev(summary: str) -> Evidence:
+    return Evidence(
+        signal=Signal.VENDOR_STACK,
+        summary=summary,
+        url="https://acme.com",
+        source="footprint",
+    )
+
+
+def test_vendor_question_cyber() -> None:
+    ev = _vendor_ev("DNS reveals: Okta, Microsoft 365, DocuSign, Mimecast (email security)")
+    results = [
+        CollectorResult(
+            name="footprint",
+            data={},
+            signals=[],
+            errors=[],
+            duration_ms=0,
+            evidence=[ev],
+        )
+    ]
+    qs = contextual_questions(_findings(role=Role.CYBERSECURITY, results=results))
+    assert len(qs) == 1
+    q = qs[0]
+    assert "DNS reveals: Okta, Microsoft 365" in q.text
+    assert "third-party/SaaS" in q.text
+    assert q.confidence == "high"
+    assert q.evidence is ev
+    assert q.source_collector == "footprint"
+
+
+def test_vendor_question_generic() -> None:
+    ev = _vendor_ev("DNS reveals: Okta, Microsoft 365")
+    results = [
+        CollectorResult(
+            name="footprint",
+            data={},
+            signals=[],
+            errors=[],
+            duration_ms=0,
+            evidence=[ev],
+        )
+    ]
+    qs = contextual_questions(_findings(role=Role.GENERIC, results=results))
+    assert len(qs) == 1
+    q = qs[0]
+    assert "third-party/SaaS integrations" in q.text
+    assert "security team manage" not in q.text

@@ -21,6 +21,19 @@ from tradecraft.models import (
 _SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 _WIKIPEDIA_URL = "https://en.wikipedia.org/wiki/{slug}"
 
+# Infobox row labels (lowercased) that carry leadership / founder names.
+_LEADERSHIP_LABELS = frozenset({"key people", "founder", "founders", "founded by", "ceo"})
+# "Name (Role)" pairs, e.g. "Matthew Prince (Co-founder, chairman & CEO)".
+# Name: 2-4 Title-Case tokens (allowing ., ', -). Role: anything inside parens.
+_LEADERSHIP_PAIR_RE = re.compile(r"([A-Z][\w.'-]+(?:\s+[A-Z][\w.'-]+){1,3})\s*\(([^)]+)\)")
+# A bare Title-Case full name (used for "Founder" cells that are just names).
+# Matched as exactly two Title-Case tokens (first + last) so a run of several
+# founders glued by whitespace ("Larry Page Sergey Brin") splits into separate
+# people rather than one over-long name. Optional trailing initials/suffixes
+# (a third Title-Case token) are intentionally not greedily absorbed.
+_BARE_NAME_RE = re.compile(r"\b([A-Z][\w.'-]+\s+[A-Z][\w.'-]+)\b")
+_MAX_LEADERSHIP = 6
+
 
 class BusinessCollector:
     name: ClassVar[str] = "business"
@@ -124,6 +137,8 @@ class BusinessCollector:
                     )
                 )
 
+            BusinessCollector._extract_leadership(fields, wiki_url, data, signals, evidence)
+
         # Lead paragraphs: concatenate the first up-to-3 real-prose <p> blocks
         # outside any table/infobox. Capturing more than just the first paragraph
         # lets deeper-sector signals (gov/defense, etc.) surface for the
@@ -172,6 +187,97 @@ class BusinessCollector:
             if k.lower() in wanted and isinstance(v, str) and v.strip()
         ]
         return " ".join(parts)
+
+    @staticmethod
+    def _extract_leadership(
+        fields: dict[str, str],
+        wiki_url: str,
+        data: dict[str, Any],
+        signals: list[Signal],
+        evidence: list[Evidence],
+    ) -> None:
+        """Extract leadership/founder people from infobox rows.
+
+        Looks at rows labelled "Key people"/"Founder(s)"/"Founded by"/"CEO".
+        Parses ``Name (Role)`` pairs; for a label that is itself a role
+        ("CEO"/"Founder") whose cell is just names, pairs each bare name with
+        that label. Conservative: only Title-Case multi-word names are kept.
+        """
+        people: list[dict[str, str]] = []
+        seen: set[str] = set()
+
+        def _add(name: str, role: str) -> None:
+            name = name.strip()
+            role = role.strip()
+            key = name.lower()
+            if not name or key in seen:
+                return
+            seen.add(key)
+            people.append({"name": name, "role": role})
+
+        for label, value in fields.items():
+            if label.lower() not in _LEADERSHIP_LABELS or not value.strip():
+                continue
+            pairs = _LEADERSHIP_PAIR_RE.findall(value)
+            if pairs:
+                for name, role in pairs:
+                    _add(name, role)
+            else:
+                # No "(Role)" parens — treat the label as the role and pull
+                # bare Title-Case names (e.g. a "Founder" cell that is just
+                # "John Smith Jane Doe"). Skip the catch-all "Key people" label
+                # here, since without parens it is too ambiguous to attribute.
+                bare_role = label.strip()
+                if bare_role.lower() == "key people":
+                    continue
+                for name in _BARE_NAME_RE.findall(value):
+                    _add(name, bare_role.title())
+            if len(people) >= _MAX_LEADERSHIP:
+                break
+
+        people = people[:_MAX_LEADERSHIP]
+        if not people:
+            return
+
+        data["leadership"] = people
+        signals.append(Signal.LEADERSHIP_IDENTIFIED)
+        evidence.append(
+            Evidence(
+                signal=Signal.LEADERSHIP_IDENTIFIED,
+                summary=BusinessCollector._leadership_summary(people),
+                url=wiki_url,
+                date=None,
+                source="wikipedia",
+            )
+        )
+
+    @staticmethod
+    def _leadership_summary(people: list[dict[str, str]]) -> str:
+        """Concise phrase: the CEO (if any) plus 1-2 founders."""
+        ceo = next(
+            (
+                p
+                for p in people
+                if "ceo" in p["role"].lower() or "chief executive" in p["role"].lower()
+            ),
+            None,
+        )
+        founders = [p for p in people if "founder" in p["role"].lower()]
+
+        parts: list[str] = []
+        if ceo is not None:
+            parts.append(f"CEO {ceo['name']}")
+        for f in founders:
+            if ceo is not None and f["name"] == ceo["name"]:
+                continue
+            parts.append(f"co-founder {f['name']}")
+            if len(parts) >= 3:
+                break
+        if not parts:
+            # No CEO/founder role keywords — name the first 1-2 people.
+            for p in people[:2]:
+                parts.append(f"{p['name']} ({p['role']})" if p["role"] else p["name"])
+        return "; ".join(parts)
 
     @staticmethod
     def _lead_paragraphs(tree: HTMLParser, max_paras: int = 3) -> str | None:
