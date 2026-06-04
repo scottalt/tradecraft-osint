@@ -341,6 +341,103 @@ async def test_style_blocks_stripped_from_lead_paragraph(http) -> None:
 
 
 @respx.mock
+async def test_leadership_key_people_extracted(http) -> None:
+    """A 'Key people' infobox row -> Name (Role) pairs + LEADERSHIP_IDENTIFIED."""
+    client, cache = http
+    respx.get("https://www.sec.gov/files/company_tickers.json").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    wiki = (
+        "<!doctype html><html><body>"
+        "<table class='infobox'><tr><th>Key people</th><td>"
+        "Matthew Prince (Co-founder, chairman &amp; CEO) "
+        "Michelle Zatlyn (Co-founder, president &amp; COO) "
+        "Thomas Seifert (CFO)"
+        "</td></tr></table>"
+        "<div class='mw-parser-output'><p>Acme is a company that builds things for "
+        "many enterprise customers across the globe every single day.</p></div>"
+        "</body></html>"
+    )
+    respx.get("https://en.wikipedia.org/wiki/Acme_Corporation").mock(
+        return_value=httpx.Response(200, text=wiki)
+    )
+    target = Target(company_name="Acme Corporation", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await BusinessCollector().run(ctx)
+
+    assert Signal.LEADERSHIP_IDENTIFIED in result.signals
+    people = result.data["leadership"]
+    names = {p["name"] for p in people}
+    assert "Matthew Prince" in names
+    assert "Michelle Zatlyn" in names
+    assert "Thomas Seifert" in names
+    prince = next(p for p in people if p["name"] == "Matthew Prince")
+    assert "CEO" in prince["role"]
+
+    ev = next(e for e in result.evidence if e.signal == Signal.LEADERSHIP_IDENTIFIED)
+    assert "CEO Matthew Prince" in ev.summary
+    assert "Michelle Zatlyn" in ev.summary
+    assert ev.source == "wikipedia"
+    assert ev.url == "https://en.wikipedia.org/wiki/Acme_Corporation"
+
+
+@respx.mock
+async def test_leadership_founders_row(http) -> None:
+    """A bare 'Founders' row (names only, no parens) -> people with role Founders."""
+    client, cache = http
+    respx.get("https://www.sec.gov/files/company_tickers.json").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    wiki = (
+        "<!doctype html><html><body>"
+        "<table class='infobox'><tr><th>Founders</th><td>"
+        "Larry Page Sergey Brin"
+        "</td></tr></table>"
+        "<div class='mw-parser-output'><p>Acme is a company that builds things for "
+        "many enterprise customers across the globe every single day.</p></div>"
+        "</body></html>"
+    )
+    respx.get("https://en.wikipedia.org/wiki/Acme_Corporation").mock(
+        return_value=httpx.Response(200, text=wiki)
+    )
+    target = Target(company_name="Acme Corporation", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await BusinessCollector().run(ctx)
+
+    assert Signal.LEADERSHIP_IDENTIFIED in result.signals
+    names = {p["name"] for p in result.data["leadership"]}
+    assert "Larry Page" in names
+    assert "Sergey Brin" in names
+    ev = next(e for e in result.evidence if e.signal == Signal.LEADERSHIP_IDENTIFIED)
+    assert "Larry Page" in ev.summary
+
+
+@respx.mock
+async def test_no_leadership_when_no_people(http) -> None:
+    """An infobox with no leadership rows -> no LEADERSHIP_IDENTIFIED."""
+    client, cache = http
+    respx.get("https://www.sec.gov/files/company_tickers.json").mock(
+        return_value=httpx.Response(200, json={})
+    )
+    wiki = (
+        "<!doctype html><html><body>"
+        "<table class='infobox'><tr><th>Founded</th><td>2009</td></tr></table>"
+        "<div class='mw-parser-output'><p>Acme is a company that builds things for "
+        "many enterprise customers across the globe every single day.</p></div>"
+        "</body></html>"
+    )
+    respx.get("https://en.wikipedia.org/wiki/Acme_Corporation").mock(
+        return_value=httpx.Response(200, text=wiki)
+    )
+    target = Target(company_name="Acme Corporation", root_url="https://acme.com")
+    ctx = CollectorContext(target=target, http=client, cache=cache)
+    result = await BusinessCollector().run(ctx)
+
+    assert Signal.LEADERSHIP_IDENTIFIED not in result.signals
+    assert "leadership" not in result.data
+
+
+@respx.mock
 async def test_no_match(http) -> None:
     client, cache = http
     respx.get("https://www.sec.gov/files/company_tickers.json").mock(

@@ -17,12 +17,14 @@ def render_markdown(findings: Findings, questions: Sequence[Question]) -> str:
     parts.append("")
     parts.append(_snapshot_section(findings))
     parts.append(_footprint_section(findings))
+    parts.append(_vendor_section(findings))
     parts.append(_company_section(findings))
     parts.append(_job_section(findings))
     parts.append(_github_section(findings))
     parts.append(_news_section(findings))
     parts.append(_breaches_section(findings))
     parts.append(_business_section(findings))
+    parts.append(_leadership_section(findings))
     parts.append(_ma_section(findings))
     parts.append(_people_section(findings))
     parts.append(_questions_section(questions))
@@ -102,6 +104,23 @@ def _footprint_section(findings: Findings) -> str:
         lines.append("")
         for s in signals:
             lines.append(f"- `{s.value}`")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _vendor_section(findings: Findings) -> str:
+    result = findings.collector("footprint")
+    vendors = cast(list[object], (result.data.get("vendors") if result else None) or [])
+    if not vendors:
+        return ""
+    lines = [
+        "## Vendor relationships (from DNS)",
+        "",
+        "Third-party SaaS / email vendors fingerprinted from public DNS (TXT/SPF/MX).",
+        "",
+    ]
+    for v in vendors:
+        lines.append(f"- {v!s}")
     lines.append("")
     return "\n".join(lines)
 
@@ -239,6 +258,21 @@ def _business_section(findings: Findings) -> str:
     if result.data.get("description"):
         lines.append("")
         lines.append(f"> {result.data['description']!s}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _leadership_section(findings: Findings) -> str:
+    result = findings.collector("business")
+    people = cast(list[object], (result.data.get("leadership") if result else None) or [])
+    if not people:
+        return ""
+    lines = ["## Key people", ""]
+    for p in people:
+        person = cast(dict[str, object], p)
+        name = person.get("name") or "(unknown)"
+        role = person.get("role")
+        lines.append(f"- {name!s} — {role!s}" if role else f"- {name!s}")
     lines.append("")
     return "\n".join(lines)
 

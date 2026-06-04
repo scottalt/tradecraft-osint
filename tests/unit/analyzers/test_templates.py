@@ -81,6 +81,8 @@ _TEMPLATE_EXCLUDED_SIGNALS: frozenset[Signal] = frozenset(
         Signal.BUSINESS_DESCRIPTION,
         Signal.JOB_STACK_LISTED,
         Signal.TECH_OBSERVED,
+        Signal.LEADERSHIP_IDENTIFIED,
+        Signal.VENDOR_STACK,
         # low-value recon: templates removed as vague filler
         Signal.RECENT_PRESS_RELEASE,
         Signal.WIKIPEDIA_INFOBOX_PRESENT,

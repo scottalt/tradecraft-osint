@@ -53,6 +53,9 @@ class Signal(StrEnum):
     # business context
     INDUSTRY_IDENTIFIED = "industry_identified"
     BUSINESS_DESCRIPTION = "business_description"
+    LEADERSHIP_IDENTIFIED = "leadership_identified"
+    # vendor / SaaS stack (fingerprinted from DNS)
+    VENDOR_STACK = "vendor_stack"
     # business
     PUBLIC_COMPANY = "public_company"
     RECENT_10K = "recent_10k"

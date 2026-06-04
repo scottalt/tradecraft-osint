@@ -144,6 +144,77 @@ def _fingerprint_tech(headers: dict[str, str], body: str) -> dict[str, list[str]
     return out
 
 
+# --- Vendor / SaaS fingerprinting from DNS (TXT + SPF includes + MX) ---------
+#
+# Each entry maps a lowercased marker substring (found in a TXT record, an SPF
+# `include:` mechanism, or an MX hostname) to the vendor it reveals. Order is
+# preserved in the output. Email-security vendors are flagged separately so a
+# single one is enough to fire the signal (it is the highest-signal finding).
+_VENDOR_TXT_SIGS: tuple[tuple[str, str], ...] = (
+    ("google-site-verification", "Google Workspace"),
+    ("include:_spf.google.com", "Google Workspace"),
+    ("ms=", "Microsoft 365"),
+    ("include:spf.protection.outlook.com", "Microsoft 365"),
+    ("atlassian-domain-verification", "Atlassian"),
+    ("docusign=", "DocuSign"),
+    ("facebook-domain-verification", "Meta"),
+    ("include:amazonses.com", "Amazon SES"),
+    ("amazonses:", "Amazon SES"),
+    ("include:mailgun.org", "Mailgun"),
+    ("include:sendgrid.net", "SendGrid"),
+    ("include:_spf.salesforce.com", "Salesforce"),
+    ("salesforce", "Salesforce"),
+    ("include:spf.mandrillapp.com", "Mailchimp"),
+    ("zoom", "Zoom"),
+    ("slack-domain-verification", "Slack"),
+    ("stripe-verification", "Stripe"),
+    ("adobe-idp-site-verification", "Adobe"),
+    ("workday", "Workday"),
+    ("okta-verification", "Okta"),
+    ("include:.okta", "Okta"),
+    ("dropbox-domain-verification", "Dropbox"),
+)
+# MX-hostname substring -> vendor. Email-security vendors are listed in
+# _EMAIL_SECURITY_VENDORS so any one of them alone fires VENDOR_STACK.
+_VENDOR_MX_SIGS: tuple[tuple[str, str], ...] = (
+    ("mimecast", "Mimecast (email security)"),
+    ("pphosted", "Proofpoint (email security)"),
+    ("proofpoint", "Proofpoint (email security)"),
+    ("outlook", "Microsoft 365 mail"),
+    ("microsoft", "Microsoft 365 mail"),
+    ("google", "Google Workspace mail"),
+    ("googlemail", "Google Workspace mail"),
+    ("mxrecord.io", "Google Workspace mail"),
+)
+_EMAIL_SECURITY_VENDORS = frozenset({"Mimecast (email security)", "Proofpoint (email security)"})
+_MAX_VENDORS = 10
+
+
+def _fingerprint_vendors(dns_records: dict[str, list[str]]) -> list[str]:
+    """Fingerprint third-party SaaS / email vendors from TXT + MX records.
+
+    Lowercases every TXT and MX value and tests each vendor signature marker as
+    a substring. Returns a de-duplicated, order-preserving list capped at
+    ``_MAX_VENDORS``.
+    """
+    txt = " ".join(r.lower() for r in dns_records.get("TXT", []))
+    vendors: list[str] = []
+
+    def _add(name: str) -> None:
+        if name not in vendors:
+            vendors.append(name)
+
+    for marker, vendor in _VENDOR_TXT_SIGS:
+        if marker in txt:
+            _add(vendor)
+    for mx in dns_records.get("MX", []):
+        mx_l = mx.lower()
+        for marker, vendor in _VENDOR_MX_SIGS:
+            if marker in mx_l:
+                _add(vendor)
+    return vendors[:_MAX_VENDORS]
+
+
 def _tech_summary(observed: dict[str, list[str]]) -> str:
     """Human phrase naming the notable (security-relevant) tech, e.g.
     'behind Cloudflare (CDN/WAF); built on WordPress'."""
@@ -240,6 +311,22 @@ class FootprintCollector:
                     )
                 )
 
+        # Vendor / SaaS fingerprint from DNS TXT + MX records. Fires VENDOR_STACK
+        # when >=2 vendors are found OR any email-security vendor is present
+        # (single email-security finding is high-signal on its own).
+        vendors = _fingerprint_vendors(dns_records or {})
+        if vendors and (len(vendors) >= 2 or any(v in _EMAIL_SECURITY_VENDORS for v in vendors)):
+            signals.append(Signal.VENDOR_STACK)
+            evidence.append(
+                Evidence(
+                    signal=Signal.VENDOR_STACK,
+                    summary=f"DNS reveals: {', '.join(vendors)}",
+                    url=str(ctx.target.root_url),
+                    date=None,
+                    source="footprint",
+                )
+            )
+
         cleaned_subs: list[str] = []
         if subdomains is not None:
             cleaned_subs = sorted(
@@ -258,6 +345,7 @@ class FootprintCollector:
                 "host": host,
                 "dns": dns_records or {},
                 "subdomains": cleaned_subs,
+                "vendors": vendors,
                 "security_headers": sec_headers,
                 "server": server_header,
                 "x_powered_by": powered_by,

@@ -48,6 +48,11 @@ export function DossierDisplay({ dossier }: { dossier: Dossier }) {
   const company = collector("company");
   const job = collector("job");
   const github = collector("github");
+  const business = collector("business");
+
+  const vendors = (footprint?.data.vendors as string[]) ?? [];
+  const leadership =
+    (business?.data.leadership as Array<{ name: string; role?: string }>) ?? [];
 
   return (
     <article className="mt-12">
@@ -102,6 +107,15 @@ export function DossierDisplay({ dossier }: { dossier: Dossier }) {
         </>
       )}
 
+      {vendors.length ? (
+        <>
+          <SectionHeader index="01c" label="VENDORS OBSERVED" />
+          <DataTable
+            rows={[{ label: "From DNS (TXT/SPF/MX)", value: vendors.join(", ") }]}
+          />
+        </>
+      ) : null}
+
       {company && (company.data.pages as unknown[])?.length ? (
         <>
           <SectionHeader index="02" label="COMPANY PROFILE" />
@@ -154,6 +168,18 @@ export function DossierDisplay({ dossier }: { dossier: Dossier }) {
               },
               { label: "Signals", value: github.signals.join(", ") || "(none)" },
             ]}
+          />
+        </>
+      ) : null}
+
+      {leadership.length ? (
+        <>
+          <SectionHeader index="04b" label="KEY PEOPLE" />
+          <DataTable
+            rows={leadership.map((p) => ({
+              label: p.name,
+              value: p.role ?? "—",
+            }))}
           />
         </>
       ) : null}
