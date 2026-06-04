@@ -281,8 +281,8 @@ async def test_vendor_fingerprint_from_dns(http, fixtures) -> None:
     assert Signal.VENDOR_STACK in result.signals
 
     ev = next(e for e in result.evidence if e.signal == Signal.VENDOR_STACK)
-    assert "DNS reveals:" in ev.summary
     assert "Atlassian" in ev.summary
+    assert "Microsoft 365" in ev.summary
     assert ev.source == "footprint"
 
 

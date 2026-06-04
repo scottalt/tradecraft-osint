@@ -441,7 +441,7 @@ def _vendor_ev(summary: str) -> Evidence:
 
 
 def test_vendor_question_cyber() -> None:
-    ev = _vendor_ev("DNS reveals: Okta, Microsoft 365, DocuSign, Mimecast (email security)")
+    ev = _vendor_ev("Okta, Microsoft 365, DocuSign, Mimecast (email security)")
     results = [
         CollectorResult(
             name="footprint",
@@ -455,7 +455,7 @@ def test_vendor_question_cyber() -> None:
     qs = contextual_questions(_findings(role=Role.CYBERSECURITY, results=results))
     assert len(qs) == 1
     q = qs[0]
-    assert "DNS reveals: Okta, Microsoft 365" in q.text
+    assert "Okta, Microsoft 365" in q.text
     assert "third-party/SaaS" in q.text
     assert q.confidence == "high"
     assert q.evidence is ev
@@ -463,7 +463,7 @@ def test_vendor_question_cyber() -> None:
 
 
 def test_vendor_question_generic() -> None:
-    ev = _vendor_ev("DNS reveals: Okta, Microsoft 365")
+    ev = _vendor_ev("Okta, Microsoft 365")
     results = [
         CollectorResult(
             name="footprint",

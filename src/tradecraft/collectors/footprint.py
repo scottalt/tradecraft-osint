@@ -320,7 +320,7 @@ class FootprintCollector:
             evidence.append(
                 Evidence(
                     signal=Signal.VENDOR_STACK,
-                    summary=f"DNS reveals: {', '.join(vendors)}",
+                    summary=", ".join(vendors),
                     url=str(ctx.target.root_url),
                     date=None,
                     source="footprint",
