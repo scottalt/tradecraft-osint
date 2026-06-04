@@ -563,6 +563,74 @@ def _jobstack_questions(findings: Findings) -> list[Question]:
     return questions
 
 
+# Observed-tech security angles. Each entry: (tech names matched in the
+# TECH_OBSERVED summary, security angle). Order is priority order; the first
+# matching angle wins (CDN/WAF is the highest-signal external-surface story).
+_TECH_OBSERVED_ANGLES: tuple[tuple[tuple[str, ...], str], ...] = (
+    (
+        ("cloudflare", "akamai", "fastly", "cloudfront", "imperva", "incapsula", "sucuri"),
+        "origin-IP protection, WAF rule tuning, and bot/DDoS management at the edge",
+    ),
+    (
+        ("next.js", "vercel", "netlify", "gatsby"),
+        "edge-function security, secret handling at the edge, and SSR/SSRF exposure",
+    ),
+    (
+        ("shopify",),
+        "checkout/app ecosystem security and the platform shared-responsibility boundary",
+    ),
+    (
+        ("wordpress", "drupal", "wix", "squarespace", "webflow", "ghost"),
+        "plugin/theme supply-chain risk, patch cadence, and hardening a CMS attack surface",
+    ),
+)
+
+
+def _observed_tech_questions(findings: Findings) -> list[Question]:
+    """One high-value, cited security question from the TECH_OBSERVED evidence.
+
+    Maps the notable observed tech to a security angle and phrases a pointed
+    question. Cyber gets the security-team framing; other tech roles get a
+    posture/architecture framing. Capped at one question.
+    """
+    ev = findings.evidence_for(Signal.TECH_OBSERVED)
+    if ev is None:
+        return []
+
+    summary_l = ev.summary.lower()
+    angle = next(
+        (a for keys, a in _TECH_OBSERVED_ANGLES if any(k in summary_l for k in keys)),
+        None,
+    )
+    if angle is None:
+        return []
+
+    role = findings.target.role
+    is_cyber = role == Role.CYBERSECURITY
+    if is_cyber:
+        q_text = (
+            f"Your public surface looks {ev.summary} — "
+            f"how is the security team approaching {angle}?"
+        )
+    else:
+        q_text = f"Your public surface looks {ev.summary} — how does the team think about {angle}?"
+
+    return [
+        Question(
+            text=q_text,
+            confidence="high",
+            role_tags={role} if not is_cyber else set(_TECH_ROLES),
+            evidence_signal=ev.signal,
+            source_collector="footprint",
+            evidence=ev,
+        )
+    ]
+
+
 def contextual_questions(findings: Findings) -> list[Question]:
-    """Industry + JD-tech questions, all evidence-backed and confidence='high'."""
-    return _industry_questions(findings) + _jobstack_questions(findings)
+    """Industry + JD-tech + observed-tech questions, evidence-backed, confidence='high'."""
+    return (
+        _industry_questions(findings)
+        + _jobstack_questions(findings)
+        + _observed_tech_questions(findings)
+    )

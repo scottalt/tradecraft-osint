@@ -33,6 +33,7 @@ def _findings_full() -> Findings:
                     "security_headers": {"strict-transport-security": "max-age=1"},
                     "server": "nginx",
                     "x_powered_by": "Next.js",
+                    "observed_tech": {"cdn_waf": ["Cloudflare"], "cms": ["WordPress"]},
                     "has_robots_txt": True,
                     "has_sitemap_xml": False,
                 },
@@ -62,6 +63,14 @@ def test_includes_subdomains_and_signals() -> None:
     md = render_markdown(findings, [])
     assert "staging.acme.com" in md
     assert "api.acme.com" in md
+
+
+def test_includes_observed_tech_section() -> None:
+    findings = _findings_full()
+    md = render_markdown(findings, [])
+    assert "### Technology observed" in md
+    assert "Cloudflare" in md
+    assert "WordPress" in md
 
 
 def test_includes_questions_with_starred_first() -> None:

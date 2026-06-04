@@ -73,6 +73,20 @@ def _footprint_section(findings: Findings) -> str:
     else:
         lines.append("- **Security headers present:** _none_")
 
+    observed = cast(dict[str, object], data.get("observed_tech") or {})
+    if observed:
+        lines.append("")
+        lines.append("### Technology observed")
+        lines.append("")
+        for label, key in (
+            ("CDN / WAF", "cdn_waf"),
+            ("CMS / platform", "cms"),
+            ("Server", "server"),
+        ):
+            items = cast(list[object], observed.get(key) or [])
+            if items:
+                lines.append(f"- **{label}:** " + ", ".join(f"`{i}`" for i in items))
+
     subs = cast(list[object], data.get("subdomains") or [])
     if subs:
         lines.append("")
