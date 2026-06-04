@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { LinkGraph } from "./LinkGraph";
+import { ScanLens } from "./ScanLens";
 import { SvgDetective } from "./SvgDetective";
 import { Typewriter } from "./Typewriter";
 
@@ -14,6 +15,9 @@ export function IntelHero() {
       {!reduced && <div className="hero-radar" aria-hidden />}
       {/* scanline overlay */}
       <div className="hero-scan" aria-hidden />
+
+      {/* move the cursor here to scan the board and decrypt hidden intel */}
+      <ScanLens>
 
       {/* top classification strip */}
       <div className="relative z-10 flex items-center justify-between border-b border-ink/30 px-5 py-2 font-data text-[10px] tracking-[0.25em] text-faded-ink">
@@ -72,6 +76,7 @@ export function IntelHero() {
           <SvgDetective />
         </div>
       </div>
+      </ScanLens>
     </section>
   );
 }

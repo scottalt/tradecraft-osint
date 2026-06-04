@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { SectionHeader } from "./SectionHeader";
 import { DataTable } from "./DataTable";
 import { RedactionReveal } from "./RedactionReveal";
@@ -27,6 +30,19 @@ type Dossier = {
 
 export function DossierDisplay({ dossier }: { dossier: Dossier }) {
   const collector = (name: string) => dossier.results.find((r) => r.name === name);
+
+  const [copied, setCopied] = useState<number | "all" | null>(null);
+  const flash = (id: number | "all") => {
+    setCopied(id);
+    window.setTimeout(() => setCopied((c) => (c === id ? null : c)), 1400);
+  };
+  const copy = (text: string, id: number | "all") => {
+    navigator.clipboard?.writeText(text).then(() => flash(id)).catch(() => {});
+  };
+  const allQuestionsText = () =>
+    dossier.questions
+      .map((q, i) => `${i + 1}. ${q.text}`)
+      .join("\n\n") + `\n\n— ${dossier.target.company_name} · tradecraft`;
 
   const footprint = collector("footprint");
   const company = collector("company");
@@ -149,11 +165,32 @@ export function DossierDisplay({ dossier }: { dossier: Dossier }) {
           full collector roster.
         </p>
       ) : (
-        <ol className="space-y-4 font-prose list-decimal pl-6">
-          {dossier.questions.map((q, i) => (
-            <li key={i} className="text-ink">
+        <>
+          <div className="mb-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => copy(allQuestionsText(), "all")}
+              className="font-typewriter text-xs uppercase tracking-widest px-4 py-2 border-2 border-ink text-ink hover:bg-ink hover:text-paper transition-colors"
+            >
+              {copied === "all" ? "✓ copied" : "Copy all questions"}
+            </button>
+            <span className="font-prose text-xs text-faded-ink italic">
+              {dossier.questions.length} question{dossier.questions.length === 1 ? "" : "s"} — take them into the interview.
+            </span>
+          </div>
+          <ol className="space-y-4 font-prose list-decimal pl-6">
+            {dossier.questions.map((q, i) => (
+            <li key={i} className="text-ink group">
               <RedactionReveal index={i}>
                 <span className={q.is_starred ? "font-semibold" : ""}>{q.text}</span>
+                <button
+                  type="button"
+                  onClick={() => copy(q.text, i)}
+                  title="Copy question"
+                  className="ml-2 align-middle font-typewriter text-[10px] uppercase tracking-wider text-faded-ink hover:text-stamp-red opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  {copied === i ? "✓ copied" : "[copy]"}
+                </button>
                 <span className="block font-typewriter text-xs uppercase text-faded-ink mt-1 tracking-wider">
                   · {q.confidence} · {q.source_collector}
                 </span>
@@ -186,8 +223,9 @@ export function DossierDisplay({ dossier }: { dossier: Dossier }) {
                 ) : null}
               </RedactionReveal>
             </li>
-          ))}
-        </ol>
+            ))}
+          </ol>
+        </>
       )}
     </article>
   );
